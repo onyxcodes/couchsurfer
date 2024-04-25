@@ -13,7 +13,6 @@ const port = process.env.APP_PORT || 5000;
 const server = app.listen(port, () => logger.info(`Listening on port ${port}`));
 
 app.use(exStatic('./dist'));
-console.log("test")
   
 app.get('*', (req, res) => {
     const templatePath = resolve(__dirname, './dist', 'index.html');

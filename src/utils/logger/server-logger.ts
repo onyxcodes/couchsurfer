@@ -17,6 +17,7 @@ const serverLogger = createLogger({
       filename: 'combined.log',
       level: 'info'
     }),
+    new winston.transports.Console(),
     new winston.transports.File({
       filename: 'errors.log',
       level: 'error'

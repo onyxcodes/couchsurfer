@@ -1,19 +1,18 @@
-import Attribute from '../Attribute'
-import Surfer from '../Surfer';
+import Attribute, { AttributeModel, AttributeType } from '../Attribute'
+import Surfer, { Document } from '../Surfer';
 // import DbManager from '..';
 
 const CLASS_TYPE = "class";
 const SUPERCLASS_TYPE = "superclass";
 const CLASS_TYPES = [CLASS_TYPE, SUPERCLASS_TYPE];
-export type AttributeModel = {
-    name: string
-}
-export type ClassModel = PouchDB.Core.ExistingDocument<{}> & {
+
+export type ClassModel = Document & {
     type: "class",
     name: string,
     description: string,
     parentClass?: string,
     schema?: AttributeModel[]
+    
 }
 
 class Class {
@@ -24,6 +23,7 @@ class Class {
     attributes: Attribute[];
     id: string | null;
     parentClass: Class | null;
+    model: ClassModel;
 
     constructor(
         space: Surfer | null = null,
@@ -111,6 +111,20 @@ class Class {
         return model;
     }
 
+    setModel( model: ClassModel ) {
+        let currentModel = this.getModel();
+        model = Object.assign(currentModel, model);
+        this.name = model.name;
+        this.title = model.description;
+        this.model = model;
+        // this.type = model.type;
+        // this.attributes = model.schema;
+        for (let attribute of model.schema) {
+            this.addAttribute(attribute.name, attribute.type);
+        }
+        
+    }
+
     // TODO: should be no longer needed
     // setType( type: 'class' | 'superclass' ) {
     //     this.type = type;
@@ -179,7 +193,7 @@ class Class {
      * 
      * @param {Attribute} attribute 
      */
-    async addAttribute(nameOrAttribute: string | Attribute, type?: string) {
+    async addAttribute(nameOrAttribute: string | Attribute, type?: AttributeType["type"]) {
         try {
             let attribute;
             if (typeof nameOrAttribute === 'string' && type) {
@@ -195,7 +209,7 @@ class Class {
                 this.attributes.push(attribute);
                 // update class on db
                 if (this.space && this.id) {
-                    this.space.updateClass(this);
+                    await this.space.updateClass(this);
                     // TODO: Check if this class has subclasses
                     // if ( this.class ) 
                 }

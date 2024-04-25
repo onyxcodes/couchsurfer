@@ -4,6 +4,8 @@ import Surfer from "./Surfer";
 
 const testDataModel = async () => {
     console.log("Starting")
+    // Surfer.clear("testDb")
+    // return;
     let surferInstance = new Surfer("testDb", {adapter: 'memory', plugins: [
         
     ]});
@@ -13,10 +15,13 @@ const testDataModel = async () => {
     var TestAttribute = new Attribute(TestClass, "TestAttribute", "string", { charLength: 100 });
     
     surferInstance = await Surfer.build(surferInstance);
+    console.log("testDataModel -  built surfer instance")
     TestClass = await Class.build(TestClass);
-    debugger;
+    console.log("testDataModel -  commited class creation")
     // add attribute to TestClass
+    console.log("testDataModel -  adding attribute to class")
     await TestClass.addAttribute(TestAttribute);
+    console.log("testDataModel -  added attribute to class")
     // Should cause error since attribute with the same name was already added 
     // let TestAttributeWithClass;
     // try {
@@ -25,6 +30,7 @@ const testDataModel = async () => {
     //   console.log("Error", e);
     // }
     // Should auto add attribute to above class
+    console.log("testDataModel -  adding attribute to class")
     let TestAnotherAttrWithClass = new Attribute(TestClass, "TestAnotherAttrWithClass", "string", { charLength: 100, isArray: true });
     TestAnotherAttrWithClass = await Attribute.build(TestAnotherAttrWithClass);
     console.log("result", {result: TestClass.getModel()})
@@ -38,10 +44,5 @@ const testDataModel = async () => {
 
 // }
 
-const test = async() => {
-    await testDataModel();
-    // testFind();
-}
-
-export default test;
+export default testDataModel;
 

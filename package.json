@@ -20,7 +20,9 @@
     "buffer": "^6.0.3",
     "crypto-browserify": "^3.12.0",
     "dotenv": "^16.4.5",
+    "express": "^4.18.3",
     "express-pino-logger": "^7.0.0",
+    "express-winston": "^4.2.0",
     "os-browserify": "^0.3.0",
     "path-browserify": "^1.0.1",
     "pino": "^8.20.0",
@@ -34,8 +36,6 @@
     "typescript": "^5.3.3",
     "url": "^0.11.3",
     "vm-browserify": "^1.1.2",
-    "express": "^4.18.3",
-    "express-winston": "^4.2.0",
     "winston": "^3.13.0",
     "winston-transport": "^4.7.0",
     "workerpool": "^9.1.1"
@@ -47,11 +47,7 @@
   "description": "A framework to build and mantain PouchDB database ",
   "name": "couchsurfer",
   "scripts": {
-    "start": "npm run build && node dist/index.js",
-    "start-cold": "ts-node --esm ./src/index.ts",
     "dev": "ts-node ./src/index.ts",
-    "build-docs": "npx typedoc --options typedoc.json",
-    "build": "webpack --mode=production --node-env=production",
-    "build:dev": "webpack --mode=development"
+    "build-docs": "npx typedoc --options typedoc.json"
   }
 }

@@ -24,8 +24,12 @@ constructor(opts: {dbName: string} & TransportStreamOptions) {
         type: "log",
         log: info
     });
-    if (response.ok) console.log("pouchdb-transport - pushed to pouchdb", response.id)
-    else console.log("pouchdb-transport - failed to push to pouchdb", response)
+    if (response.ok) {
+      // console.log("pouchdb-transport - pushed to pouchdb", response.id)
+    }
+    else {
+      console.log("pouchdb-transport - failed to push to pouchdb", response)
+    }
     // Perform the writing to the remote service
     callback();
   }
