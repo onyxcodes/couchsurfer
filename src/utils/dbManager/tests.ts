@@ -14,7 +14,6 @@ const testDataModel = async () => {
     // Create attribute and adds it to above class
     var TestAttribute = new Attribute(TestClass, "TestAttribute", "string", { charLength: 100 });
     
-    surferInstance = await Surfer.build(surferInstance);
     console.log("testDataModel -  built surfer instance")
     TestClass = await Class.build(TestClass);
     console.log("testDataModel -  commited class creation")
@@ -34,6 +33,8 @@ const testDataModel = async () => {
     let TestAnotherAttrWithClass = new Attribute(TestClass, "TestAnotherAttrWithClass", "string", { charLength: 100, isArray: true });
     TestAnotherAttrWithClass = await Attribute.build(TestAnotherAttrWithClass);
     console.log("result", {result: TestClass.getModel()})
+    let aDocument = await surferInstance.createDoc(null, "TestClass", {TestAttribute: "TestValue", TestAnotherAttrWithClass: ["TestValue1", "TestValue2"]});
+    console.log("aDocument was created", aDocument)
 }
 
 // const testFind = async () => {

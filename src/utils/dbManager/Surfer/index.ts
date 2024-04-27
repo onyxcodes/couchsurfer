@@ -91,6 +91,11 @@ class Surfer {
         try {
             doc = await this.db.get(docId);
         } catch (e) {
+            if (e.name === 'not_found') {
+                logger.info("getDocument - not found", e)
+                return null;
+            }
+            logger.info("getDocument - error", e)
             throw new Error(e);
         }
         return doc;
@@ -107,7 +112,7 @@ class Surfer {
         return _rev;
     }
 
-    async findDocument( selector: any, fields = undefined, skip = undefined, limit = undefined ) {
+    async findDocuments( selector: any, fields = undefined, skip = undefined, limit = undefined ) {
         let indexFields = Object.keys(selector);
         let result: {
             docs: (PouchDB.Core.ExistingDocument<{}>)[] | undefined[],
@@ -127,13 +132,21 @@ class Surfer {
                 limit: limit
             });
     
-            logger.info("findDocument - found", foundResult);
+            logger.info("findDocument - found", {
+                result: foundResult,
+                selector: selector,
+            });
             result = { docs: foundResult.docs, selector, skip, limit };
             return result;
         } catch (e) {
             logger.info("findDocument - error",e);
             return {docs: [], error: e.toString(),selector, skip, limit};
         }
+    }
+
+    async findDocument( selector: any, fields = undefined, skip = undefined, limit = undefined ) {
+        let result = await this.findDocuments(selector, fields, skip, limit);
+        return result.docs.length > 0 ? result.docs[0] : null;
     }
 
     // TODO: Do not confuse Class with Class models
@@ -144,8 +157,8 @@ class Surfer {
         };
 
         let response = await this.findDocument(selector);
-        let result: ClassModel = response.docs[0] as ClassModel
-        logger.info("getClassModel - result", result)
+        let result: ClassModel = response as ClassModel
+        logger.info("getClassModel - result", {response, result: result})
         return result;
     }
 
@@ -156,7 +169,7 @@ class Surfer {
         // TODO: parentClass may be interesting
         let fields = ['_id', 'name', 'description'];
 
-        let response = await this.findDocument(selector, fields);
+        let response = await this.findDocuments(selector, fields);
         let result: ClassModel[] = response.docs as ClassModel[];
         return result;
     }
@@ -250,8 +263,12 @@ class Surfer {
         
             switch(model.type) {
                 case 'string':
-                    if (typeof value !== model.type) {
+                    if (!model.config.isArray && typeof value !== model.type) {
                         logger.info(`Property ${model.name} is not of type ${model.type}.`);
+                        isValid = false;
+                        return;
+                    } else if (model.config.isArray && !Array.isArray(value)) {
+                        logger.info(`Property ${model.name} is not an array.`);
                         isValid = false;
                         return;
                     }
@@ -264,6 +281,7 @@ class Surfer {
                     } 
                 break;
                 case 'decimal':
+                    // TODO: decide how to interpret decimal
                     if (model.config as AttributeTypeDecimal["config"] ) {
                         if (model.config.min && value < model.config.min) {
                             logger.info(`Property ${model.name} is less than ${model.config.min}.`);
@@ -279,6 +297,15 @@ class Surfer {
 
                 break;
                 case 'integer':
+                    if (!model.config.isArray && typeof value !== 'number') {
+                        logger.info(`Property ${model.name} is not of type ${model.type}.`);
+                    } else if (model.config.isArray && (
+                            !Array.isArray(value) || !value.every((v) => typeof v === 'number')
+                        )){
+                        logger.info(`Property ${model.name} is not an array.`);
+                        isValid = false;
+                        return;
+                    }
                     if (model.config as AttributeTypeInteger["config"] ) {
                         if (model.config.min && value < model.config.min) {
                             logger.info(`Property ${model.name} is less than ${model.config.min}.`);
@@ -297,6 +324,7 @@ class Surfer {
                     logger.info("Probably an attribute? Huh", model)
             }
         })
+        logger.info("validateObject - result", {result: isValid})
         return isValid;
     }
 
@@ -347,20 +375,23 @@ class Surfer {
             if  (await !this.validateObjectByType(params, type)) {
                 throw new Error("createDoc - Invalid object")
             }
-            if ( docId ) {
-                doc = await this.getDocument(docId) as Document;
-                if ( doc._rev == null ) throw new Error("Doc with given id `"+docId+"` was not found")
-                // means that the given docId was not found
-                // therefore throw error
+            if (docId) {
+                const existingDoc = await this.getDocument(docId) as Document;
+                if (existingDoc && existingDoc.type === type) {
+                    doc = existingDoc;
+                } else if (existingDoc && existingDoc.type !== type) {
+                    throw new Error("createDoc - Existing document type differs");
+                } else {
+                    isNewDoc = true;
+                    doc = this.prepareDoc(docId, type, params);
+                }
             } else {
-               
                 doc = this.prepareDoc(docId, type, params);
-                //generate controlled docId
                 isNewDoc = true;
-                docId = ""+(this.lastDocId+1);
-                logger.info("createDoc - generated docId", docId)
+                docId = `${type}-${(this.lastDocId+1)}`;
+                logger.info("createDoc - generated docId", docId);
             }
-            doc = Object.assign(doc,{...params,_id: docId, updateTimestamp: new Date().getTime()});
+            doc = Object.assign(doc, {...params, _id: docId, updateTimestamp: new Date().getTime()});
             logger.info("createDoc - doc after elaboration", doc)
             let response = await db.put(doc);
             logger.info("createDoc - Response after put",{"response": response});
@@ -397,9 +428,10 @@ class Surfer {
                     "error": e,
                     "document": doc
                 })
+                throw new Error("createDoc - Problem while putting doc"+e);
             }
-            return docId;
         }
+        return docId;
     }
 }
 
