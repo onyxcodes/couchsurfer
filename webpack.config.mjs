@@ -34,7 +34,6 @@ const config = {
             "http": "stream-http",
             "crypto": "crypto-browserify",
             "os": "os-browserify/browser",
-            "buffer": "buffer",
             "zlib": "browserify-zlib",
             "assert": "assert/",
             "vm": "vm-browserify",

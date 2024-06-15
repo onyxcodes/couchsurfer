@@ -6,6 +6,7 @@
     "module": "NodeNext",
     "outDir": "./dist",
     "baseUrl": "./src",
+    "skipLibCheck": true,
     "alwaysStrict": true,
     "noImplicitAny": false,
     "allowSyntheticDefaultImports": true,
