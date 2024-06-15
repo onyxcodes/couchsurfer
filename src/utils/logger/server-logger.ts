@@ -1,6 +1,6 @@
 // import expressPino from "express-pino-logger";
-import expressWinston from "express-winston"
-import winston from "winston";
+import * as expressWinston from "express-winston"
+import * as winston from "winston";
 import { createLogger, transports, format } from "winston";
 import PouchDBTransport from "./transport";
 // import pino from "pino"

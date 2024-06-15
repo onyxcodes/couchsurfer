@@ -4,7 +4,7 @@ import * as dotenv from "dotenv";
 dotenv.config({ path: './.env' })
 import { resolve } from 'path';
 import logger, {logRequest} from "./utils/logger/server-logger"
-import test from './utils/dbManager/tests';
+import test from './utils/dbManager/test';
 
 const app = express();
 app.use(logRequest)

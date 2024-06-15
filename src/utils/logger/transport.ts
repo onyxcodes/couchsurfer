@@ -1,10 +1,11 @@
-import Transport, {TransportStreamOptions} from "winston-transport";
+import Transport, { TransportStreamOptions } from "winston-transport";
 import NodePouchDB from "pouchdb-node"
+import * as stream from 'stream';
 //
 // Inherit from `winston-transport` so you can take advantage
 // of the base functionality and `.exceptions.handle()`.
 //
-class PouchDBTransport extends Transport {
+class PouchDBTransport extends Transport{
     db: PouchDB.Database<{}> = undefined;
     // fields for storing database connection information
 constructor(opts: {dbName: string} & TransportStreamOptions) {

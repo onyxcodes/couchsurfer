@@ -1,10 +1,13 @@
 import Class from "../Class";
+import { AttributeTypeReference } from "../Reference";
 
-const ATTRIBUTE_TYPES = ["string", "number", "integer"];
+const ATTRIBUTE_TYPES = ["string", "number", "integer", "reference", "boolean"];
 
 export type AttributeTypeConfig = {
     isArray?: boolean,
+    primaryKey?: boolean,
     mandatory?: boolean,
+    defaultValue?: any,
     [key: string]: any
 }
 export type AttributeTypeDecimal = {
@@ -22,7 +25,19 @@ export type AttributeTypeString = {
     type: "string",
     config: {maxLength?: number} & AttributeTypeConfig
 }
-export type AttributeType = AttributeTypeString | AttributeTypeInteger | AttributeTypeDecimal;
+
+export type AttributeTypeBoolean = {
+    type: "boolean",
+    name: string,
+    config: {default?: boolean} & AttributeTypeConfig
+}
+export type AttributeTypeForeignKey = {
+    type: "foreign_key",
+    name: string,
+    config: {} & AttributeTypeConfig
+}
+export type AttributeType = AttributeTypeString | AttributeTypeInteger | 
+    AttributeTypeDecimal | AttributeTypeReference | AttributeTypeBoolean | AttributeTypeForeignKey;
 export type AttributeModel = {
     name: string,
     config: AttributeType["config"],
@@ -30,17 +45,17 @@ export type AttributeModel = {
 }
 class Attribute {
     name: string;
-    model: any;
+    model: AttributeModel;
     class: Class;
-    constructor(classObj: Class = null, name: string, type: AttributeType["type"], config?: any ) {
-        // [TODO] Should check if attribute with this name
-        // already exist whithin its context
+    defaultValue?: any;
+
+    constructor(classObj: Class = null, name: string, type: AttributeType["type"], config?: AttributeType["config"] ) {
         this.name = name;
-        this.model = {}
         this.setModel({
-            name: this.name
+            name: this.name,
+            type: this.getType(type),
+            config: this.getTypeConf(type, config),
         });
-        this.setType(type, config)
         // if it's given a class
         if ( classObj ) {
             // attempt to add attribute
@@ -48,8 +63,13 @@ class Attribute {
         }
     }
 
+    isPrimaryKey() {
+        let model = this.getModel();
+        return model.config.primaryKey;
+    }
+
     getModel() {
-        return this.model || {};
+        return this.model;
     }
 
     getClass() {
@@ -68,21 +88,17 @@ class Attribute {
         }
     }
 
-    setModel( model ) {
+    setModel( model: AttributeModel ) {
         let currentModel = this.getModel();
-        model = Object.assign(currentModel, model);
+        model = Object.assign(currentModel || {}, model);
         this.model = model;
+        this.defaultValue = model.config.defaultValue;
     }
     
     // TODO: Better define config
-    setType( type: AttributeType["type"], config ) {
+    getType( type: AttributeType["type"]) {
         if ( this.checkTypeValidity(type) ) {
-            let model: AttributeModel = {
-                name: this.name,
-                config: this.getTypeConf(type, config),
-                type: type
-            };
-            this.setModel(model);
+            return type
         } else throw Error("Invalid attribute type: "+type)
         // return this?
     }
@@ -106,7 +122,7 @@ class Attribute {
     // TODO: since config depends on attribute's type, 
     // find a way to check if given configs are correct
     // find a way to add default configs base on type
-    getTypeConf( type: AttributeType["type"], config ) {
+    getTypeConf( type: AttributeType["type"], config: AttributeType["config"] ) {
         switch( type ) {
             // TODO: add missing cases and change values to imported const 
             case "decimal":

@@ -2,11 +2,13 @@ import NodePouchDB from "pouchdb-node";
 import Find from 'pouchdb-find'
 import serverLogger from "../../../utils/logger/server-logger";
 import Class, { ClassModel } from "../Class";
-import { AttributeModel, AttributeTypeDecimal, AttributeTypeInteger, AttributeTypeString } from "../Attribute";
+import Domain, { DomainModel } from "../Domain";
+import { AttributeModel, AttributeTypeDecimal, AttributeTypeForeignKey, AttributeTypeInteger, AttributeTypeString } from "../Attribute";
 import { config } from "winston";
-const logger = serverLogger.child({module: "pouchdb"})
+import ReferenceAttribute, { AttributeTypeReference } from "../Reference";
+const logger = serverLogger.child({module: "Surfer"})
 
-const BASE_SCHEMA: AttributeModel[] = [
+export const BASE_SCHEMA: AttributeModel[] = [
     { name: "name", type: "string", config: { maxLength: 100 } },
     { name: "type", type: "string", config: { maxLength: 100 } },
     { name: "createTimestamp", type: "integer", config: { min: 0 } },
@@ -15,7 +17,33 @@ const BASE_SCHEMA: AttributeModel[] = [
 ]
 const CLASS_SCHEMA: (AttributeModel | {name: "schema", type: "attribute", config: {}})[] = [
     { name: "schema", type: "attribute", config: { maxLength: 1000, isArray: true }},
-    { name: "parentClass", type: "string", config: { maxLength: 100 , isArray: false } },
+    { name: "parentClass", type: "foreign_key", config: { isArray: false } },
+    ...BASE_SCHEMA
+]
+const DOMAIN_SCHEMA: (AttributeModel | {name: "schema", type: "attribute", config: {}})[] = [
+    { name: "schema", type: "attribute", config: { 
+        isArray: true,
+        defaultValue: [
+            {
+                name: "source",
+                type: "foreign_key",
+                config: {
+                    isArray: false
+                }
+            },
+            {
+                name: "target",
+                type: "foreign_key",
+                config: {
+                    isArray: false
+                }
+            }
+        ]
+    }},
+    { name: "parentDomain", type: "foreign_key", config: { isArray: false } },
+    { name: "relation", type: "string", config: { maxLength: 100 , isArray: false } },
+    { name: "sourceClass", type: "foreign_key", config: { isArray: true } },
+    { name: "targetClass", type: "foreign_key", config: { isArray: true } },
     ...BASE_SCHEMA
 ]
 export type Document = PouchDB.Core.ExistingDocument<{}> & {
@@ -31,7 +59,8 @@ type SurferOptions = {
 
 class Surfer {
     public db: PouchDB.Database<{}> = undefined;
-    lastDocId: number
+    lastDocId: number;
+    public static version: string = "0.0.1";
 
     constructor(conn: string,  options?: SurferOptions) {
         // load default plugins
@@ -51,18 +80,75 @@ class Surfer {
             let doc: { value: number, [key:string]: string | number} = await this.db.get("lastDocId");
             lastDocId = doc.value;
         } catch (e) {
+            if (e.name === 'not_found') {
+                return lastDocId
+            }
             logger.error("checkdb - something went wrong", {"error": e});
         }
         return lastDocId;
     }
 
 
+    // Database initialization should be about making sure that all the documents
+    // representing the base data model for this framework are present
+    // perform tasks like applying patches, creating indexes, etc.
     async initdb () {
+        this.db.info().then((info) => {
+            logger.info("initdb - db info", info.backend_adapter, info.doc_count, info.update_seq);
+        });
+        await this.initIndex();
+        return this;
+    }
+
+    async getClass(className: string) {
+        let classObj = await Class.fetch(this, className);
+        return classObj;
+    }
+
+    async getDomain(domainName: string) {
+        let domainObj = await Domain.fetch(this, domainName);
+        return domainObj;
+    }
+
+    async setSystem() {
+        let dbInfo = await this.db.info();
+        logger.info("setSystem - db info", dbInfo)
+        let systemClass: Class;
+        try {
+            systemClass = await this.getClass("System");
+        } catch (e) {
+            // system class does not exist
+            // create it from base data model
+            systemClass = await this.getClass("System"); // TEMP
+        }
+        let currentSystem = await systemClass.getCards({
+            db_name: dbInfo.db_name,
+            backend_adapter: dbInfo.backend_adapter,
+        }, null, null, null);
+        if (currentSystem.length == 0) {
+            let systemDoc = {
+                db_name: dbInfo.db_name,
+                backend_adapter: dbInfo.backend_adapter,
+                doc_count: dbInfo.doc_count,
+                update_seq: dbInfo.update_seq,
+                version: Surfer.version,
+                patch: null
+            }
+            await systemClass.addCard(systemDoc);
+        } else {
+            let systemDoc = {
+                doc_count: dbInfo.doc_count,
+                update_seq: dbInfo.update_seq,
+            }
+            await systemClass.updateCard(currentSystem[0]._id, systemDoc);
+        }
+    }
+    async initIndex () {
         try {
             let lastDocId: number = await this.getLastDocId();
-            lastDocId = Number(lastDocId);
             // logger.info("initdb - res", res)
             if (!lastDocId) {
+                lastDocId = Number(lastDocId);
                 // logger.info("initdb - initializing db")
                 let response = await this.db.put({
                     _id: "lastDocId",
@@ -73,8 +159,7 @@ class Surfer {
             } else {
                 logger.info("initdb - db already initialized, consider purge")
             }
-            this.lastDocId = lastDocId;
-            return this;
+            this.lastDocId = Number(lastDocId);
         } catch (e) {
             throw new Error("initdb -  something went wrong"+e);
         }
@@ -86,7 +171,7 @@ class Surfer {
     }
 
     // TODO: Consider filtering returned properties
-    async getDocument(docId) {
+    async getDocument(docId: string) {
         let doc: PouchDB.Core.ExistingDocument<{}> | undefined = undefined;
         try {
             doc = await this.db.get(docId);
@@ -156,9 +241,28 @@ class Surfer {
             name: { $eq: className }
         };
 
-        let response = await this.findDocument(selector);
-        let result: ClassModel = response as ClassModel
-        logger.info("getClassModel - result", {response, result: result})
+        try {
+            let response = await this.findDocument(selector);
+            if (response == null) return null;
+            let result: ClassModel = response as ClassModel
+            logger.info("getClassModel - result", {result: result})
+            return result;
+        } catch(e) {
+            logger.info("getClassModel - error", e)
+            throw new Error(e)
+        }
+        
+    }
+
+    async getDomainModel( domainName: string ) {
+        let selector = {
+            type: { $eq: "domain" },
+            name: { $eq: domainName }
+        }
+
+        let response = await this.findDocument(selector)
+        let result: DomainModel = response as DomainModel
+        logger.info("getDomainModel - result", {result})
         return result;
     }
 
@@ -174,7 +278,7 @@ class Surfer {
         return result;
     }
 
-    async getClassModels( classNames ) {
+    async getClassModels( classNames: string[] ) {
         let allClasses = await this.getAllClassModels();
         let result = allClasses.filter( classObj => classNames.includes(classObj.name) );
         return result;
@@ -207,37 +311,36 @@ class Surfer {
     }
 
     async addClass( classObj: Class ) {
-        // Check for existance
-        // let exists = awaut getClass()
         let classModel = classObj.getModel();
-        let existing = await this.getClassModel(classModel.name);
-        if ( existing == null ) {
-            let result = await this.createDoc(classObj.getName(), classObj.getType(), classObj.getModel());
-            logger.info("addClass - result", result)
-            return result;
+        logger.info("addClass - got class model", {classModel})
+        let existingDoc = await this.getClassModel(classModel.name);
+        if ( existingDoc == null ) {
+            let resultDoc = await this.createDoc(classModel.name, classObj, classModel);
+            logger.info("addClass - result", resultDoc)
+            return resultDoc as ClassModel;
         } else {
-            return existing._id;
+            return existingDoc;
         } 
     }
 
-    async updateClass(classObj: Class) {
-        let maxRetries = 5;
-        for(let i = 0; i < maxRetries; i++) {
-            try {
-                let result = await this.createDoc(classObj.getId(), classObj.getType(), classObj.getModel());
-                return result;
-            } catch (error) {
-                if (error.name === 'conflict') {
-                    // Fetch the latest document and update the model
-                    let latestDoc = await this.getDocument(classObj.getId()) as ClassModel;
-                    classObj.setModel(latestDoc);
-                } else {
-                    // If it's not a conflict error, rethrow it
-                    throw error;
-                }
-            }
+    async addDomain( domainObj: Domain ) {
+        let domainModel = domainObj.getModel();
+        let existingDoc = await this.getDomainModel(domainModel.name);
+        if ( existingDoc == null ) {
+            let resultDoc = await this.createDoc(domainModel.name, domainObj, domainModel);
+            logger.info("addClass - result", resultDoc)
+            return resultDoc as DomainModel;
+        } else {
+            return existingDoc;
         }
-        throw new Error('Failed to update document after ' + maxRetries + ' attempts');
+    }
+
+    async updateClass(classObj: Class) {
+        return await this.createDoc(classObj.getId(), classObj, classObj.getModel()) as ClassModel;
+    }
+
+    async updateDomain(domainObj: Domain) {
+        return await this.createDoc(domainObj.getId(), domainObj, domainObj.getModel()) as DomainModel;
     }
 
     // You have an object and array of AttributeModels,
@@ -245,10 +348,11 @@ class Surfer {
     // a type and a configuration
     // Based on the configuration apply various checks on the given object's
     // value at the corresponding attribute name
-    validateObject(obj: any, attributeModels: AttributeModel[]): boolean {
+    async validateObject(obj: any, attributeModels: AttributeModel[]): Promise<boolean> {
+        logger.info("validateObject - given args", {obj: obj, attributeModels: attributeModels})
         let isValid = true;
-        attributeModels.forEach(model => {
-            const value = obj[model.name];
+        attributeModels.forEach(async model => {
+            let value = obj[model.name];
     
             // Check if the property exists
             if (value === undefined && model.config.mandatory) {
@@ -259,6 +363,12 @@ class Surfer {
 
             if ( !model.config.mandatory && value === undefined ) {
                 return;
+            }
+
+            // update object's value to the default value
+            if (model.config.defaultValue && value === undefined) {
+                obj[model.name] = model.config.defaultValue;
+                value = obj[model.name];
             }
         
             switch(model.type) {
@@ -320,6 +430,64 @@ class Surfer {
                     }
 
                 break;
+                case "foreign_key":
+                    model.config as AttributeTypeForeignKey["config"]
+                    // check if foreign key corresponds to an existing document
+                    let foreignKeyDoc = await this.getDocument(value);
+                    if (foreignKeyDoc == null) {
+                        logger.info(`Foreign key ${value} does not exist.`);
+                        isValid = false;
+                        return;
+                    }
+                break;
+                case "reference":
+                    model.config as AttributeTypeReference["config"]
+                    var domain = await this.getDomain(model.config.domain)
+                    if (domain == null) {
+                        logger.info(`Reference domain ${model.config.domain} does not exist.`);
+                        isValid = false;
+                        return;
+                    }
+                    // check if the reference it points to exists
+                    let reference = await this.getDocument(value)
+                    if (reference == null) {
+                        logger.info(`Reference ${value} does not exist.`);
+                        isValid = false;
+                        return;
+                    }
+                    switch (domain.relationType) {
+                        case "one-to-one":
+                            // check if the reference is unique
+                            // based on the position of the reference
+                            var selector = {
+                                type: { $eq: domain.name },
+                                [model.config.position]: { $eq: value }
+                            }
+                            var result = await this.findDocument(selector)
+                            if (result) {
+                                logger.info(`Reference ${value} is not unique.`);
+                                isValid = false;
+                                return;
+                            }
+                        break;
+                        case "one-to-many":
+                            // check if the reference is unique
+                            // based on the position of the reference
+                            var selector = {
+                                type: { $eq: domain.name },
+                                [model.config.position]: { $eq: value }
+                                
+                            }
+                            var result = await this.findDocument(selector)
+                            if (result) {
+                                logger.info(`Reference ${value} is not unique.`);
+                                isValid = false;
+                                return;
+                            }
+                            break;
+                    }
+
+                break;
                 default:
                     logger.info("Probably an attribute? Huh", model)
             }
@@ -328,24 +496,29 @@ class Surfer {
         return isValid;
     }
 
-    async validateObjectByType (obj: any, type: string) {
-        let schema: AttributeModel[] = [];
-        switch (type) {
-            case "class":
-                schema = CLASS_SCHEMA as AttributeModel[];
-                break;
-            default:
-                try {
-                    const classDoc = await this.db.get(type) as ClassModel;
-                    schema = classDoc.schema;
-                } catch (e) {
-                    // if 404 validation failed because of missing class
-                    logger.info("validateObjectByType - failed because of error",e)
-                    return false;
-                }
-                // schema = BASE_SCHEMA;
+    async validateObjectByType (obj: any, type: string, schema?: ClassModel["schema"] | DomainModel["schema"]) {
+        logger.info("validateObjectByType - given args", {obj, type, schema})
+        if (!schema) {
+            switch (type) {
+                case "class":
+                    schema = CLASS_SCHEMA as AttributeModel[];
+                    break;
+                case "domain":
+                    schema = DOMAIN_SCHEMA as AttributeModel[]
+                    break;
+                default:
+                    try {
+                        const classDoc = await this.getClassModel(type) as ClassModel;
+                        schema = classDoc.schema;
+                    } catch (e) {
+                        // if 404 validation failed because of missing class
+                        logger.info("validateObjectByType - failed because of error",e)
+                        return false;
+                    }
+            }
         }
-        return this.validateObject(obj, schema);
+        
+        return await this.validateObject(obj, schema);
     }
 
     prepareDoc (_id: string, type: string, params: object) {
@@ -366,13 +539,15 @@ class Surfer {
         return doc;
     }
 
-    async createDoc(docId: string, type: string, params) {
-        logger.info("createDoc - args", {docId, type, params});
+    async createDoc(docId: string, classObj: Class | Domain, params) {
+        let type = classObj.name,
+            schema = classObj.buildSchema();
+        logger.info("createDoc - args", {docId, type, params, schema});
         let db = this.db,
             doc: Document,
             isNewDoc = false;
         try {
-            if  (await !this.validateObjectByType(params, type)) {
+            if  (!(await this.validateObjectByType(params, type, schema))) {
                 throw new Error("createDoc - Invalid object")
             }
             if (docId) {
@@ -386,9 +561,9 @@ class Surfer {
                     doc = this.prepareDoc(docId, type, params);
                 }
             } else {
+                docId = `${type}-${(this.lastDocId+1)}`;
                 doc = this.prepareDoc(docId, type, params);
                 isNewDoc = true;
-                docId = `${type}-${(this.lastDocId+1)}`;
                 logger.info("createDoc - generated docId", docId);
             }
             doc = Object.assign(doc, {...params, _id: docId, updateTimestamp: new Date().getTime()});
@@ -400,6 +575,14 @@ class Surfer {
                 // let uploadedDoc = await db.get(response.id);
                 // logger.info({"doc": uploadedDoc}, "createDoc - Uploaded doc")
                 docId = response.id;
+                // create relations if needed
+                logger.info("createDoc - schema detail", {schema})
+                for (const attributeModel of schema) {
+                    if (attributeModel.type === "reference") {
+                        let referenceAttr = new ReferenceAttribute(classObj, attributeModel.name, attributeModel.config as AttributeTypeReference["config"]);
+                        await this.createRelationFromRef(referenceAttr, doc);
+                    }
+                }
             }
             else if (response.ok) {
                 docId = response.id;
@@ -431,7 +614,50 @@ class Surfer {
                 throw new Error("createDoc - Problem while putting doc"+e);
             }
         }
-        return docId;
+        return doc;
+    }
+
+    async createRelationFromRef (referenceAttr: ReferenceAttribute, doc: Document) {
+        let refValue = doc[referenceAttr.name];
+        let domain = await this.getDomain(referenceAttr.domain);
+        let referenceDoc = await this.getDocument(refValue) as Document;
+        let refClassName = referenceDoc.type;
+
+        let sourceClass: string = "", targetClass: string = "";
+        let sourceId: string = "", targetId: string = "";
+        if (domain.targetClass.includes(doc.type)) {
+            targetClass = doc.type;
+        }
+        if (domain.sourceClass.includes(doc.type)) {
+            targetClass = doc.type;
+        }
+        if (referenceAttr.position === "source") {
+            if (domain.targetClass.includes(doc.type)) {
+                targetClass = doc.type;
+            }
+            if (domain.sourceClass.includes(refClassName)) {
+                sourceClass = refClassName;
+            }
+            sourceId = doc._id;
+            targetId = refValue;
+        } else if (referenceAttr.position === "target") {
+            if (domain.sourceClass.includes(doc.type)) {
+                sourceClass = doc.type;
+            }
+            if (domain.targetClass.includes(refClassName)) {
+                targetClass = refClassName;
+            }
+            sourceId = refValue;
+            targetId = doc._id;
+        }
+        let params = {
+            source: sourceId,
+            target: targetId,
+            sourceClass: sourceClass,
+            targetClass: targetClass,
+        }
+
+        return this.createDoc(null, domain, params);
     }
 }
 
