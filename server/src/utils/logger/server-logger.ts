@@ -13,7 +13,7 @@ export const logRequest = expressWinston.logger({
 });
 
 const serverLogger = createLogger({
-    transports: [ new PouchDBTransport({dbName: "couch-log"}), new winston.transports.File({
+    transports: [ new PouchDBTransport({dbName: "log"}), new winston.transports.File({
       filename: 'combined.log',
       level: 'info'
     }),

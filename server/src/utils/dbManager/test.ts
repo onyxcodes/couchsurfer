@@ -7,7 +7,7 @@ const testDataModel = async () => {
     console.log("Starting")
     // Surfer.clear("testDb")
     // return;
-    let surferInstance = new Surfer("testDb", {adapter: 'memory', plugins: [
+    let surferInstance = new Surfer("db-test", {adapter: 'memory', plugins: [
         
     ]});
     surferInstance = await Surfer.build(surferInstance);
