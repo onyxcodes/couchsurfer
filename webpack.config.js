@@ -13,9 +13,9 @@ const stylesHandler = isProduction
   : "style-loader";
 
 const config = {
-  entry: "./src/index.tsx",
+  entry: "./ui/src/index.tsx",
   output: {
-    path: path.resolve(__dirname, "dist"),
+    path: path.resolve(__dirname, "ui/lib"),
     filename: '[name].[contenthash].js',
     clean: true,
   },
@@ -26,7 +26,7 @@ const config = {
   },
   plugins: [
     new HtmlWebpackPlugin({
-      template: "./src/index.html",
+      template: "./ui/src/index.html",
     }),
     new webpack.ProvidePlugin({
       process: 'process/browser',
@@ -92,14 +92,14 @@ const config = {
     ],
     alias: {
       'pouchdb-promise$': "pouchdb-promise/lib/index.js",
-      'styles': path.resolve(__dirname, "src/styles"),
-      'components': path.resolve(__dirname, "src/components"),
-      'hooks': path.resolve(__dirname, "src/hooks"),
-      'views': path.resolve(__dirname, "src/views"),
-      'assets': path.resolve(__dirname, "src/assets"),
-      'features': path.resolve(__dirname, "src/features"),
-      'store': path.resolve(__dirname, "src/store"),
-      'utils': path.resolve(__dirname, "src/utils"),
+      'styles': path.resolve(__dirname, "ui/src/styles"),
+      'components': path.resolve(__dirname, "ui/src/components"),
+      'hooks': path.resolve(__dirname, "ui/src/hooks"),
+      'views': path.resolve(__dirname, "ui/src/views"),
+      'assets': path.resolve(__dirname, "ui/src/assets"),
+      'features': path.resolve(__dirname, "ui/src/features"),
+      'store': path.resolve(__dirname, "ui/src/store"),
+      'utils': path.resolve(__dirname, "ui/src/utils"),
     }
   },
 };

@@ -1,12 +1,21 @@
 {
-  "name": "couchsurfer-ui",
-  "version": "0.0.1",
-  "private": true,
-  "scripts": {
-    "start": "npm run develop",
-    "develop": "webpack serve --node-env=development --progress",
-    "build": "webpack --node-env=production"
+  "name": "couchsurfer",
+  "version": "1.0.0",
+  "main": "index.js",
+  "repository": "https://github.com/onyxcodes/couchsurfer.git",
+  "license": "CC-BY-SA-4.0",
+  "author": "Onyx <onyxganda@gmail.com> (https://onxy.ac)",
+  "contributors": [
+    "Onyx <onyxganda@gmail.com> (https://onyx.ac)"
+  ],
+  "exports": {
+    "./ui": "./lib/client.js",
+    "./server": "./lib/server.js"
   },
+  "moduleDirectories": [
+    "./ui/src",
+    "./server/src"
+  ],
   "eslintConfig": {
     "extends": [
       "react-app",
@@ -24,6 +33,19 @@
       "last 1 firefox version",
       "last 1 safari version"
     ]
+  },
+  "scripts": {
+    "start": "npm run build && npm run start:server",
+    "start:server": "node ./server/lib/index.js",
+    "develop:ui": "webpack serve --node-env=development --progress",
+    "develop:server": "ts-node ./server/src/index.ts",
+    "test": "jest --config jest.config.ts",
+    "build:server": "tsc --project ./server/tsconfig.json",
+    "build:ui": "webpack --node-env=production",
+    "build": "npm run build:server && npm run build:ui",
+    "build-docs:server": "npx typedoc --options ./server/typedoc.json",
+    "build-docs:ui": "npx typedoc --options ./ui/typedoc.json",
+    "build-docs": "npm run build-docs:server && npm run build-docs:ui"
   },
   "devDependencies": {
     "@babel/core": "^7.24.0",
@@ -105,5 +127,7 @@
     "workbox-webpack-plugin": "^6.5.3",
     "workerpool": "^9.1.1"
   },
-  "description": "CouchSurfer UI"
+  "dependencies": {
+    "pouchdb-node": "^8.0.1"
+  }
 }
