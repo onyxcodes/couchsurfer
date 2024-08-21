@@ -6,6 +6,7 @@ import Domain, { DomainModel } from "../Domain";
 import { AttributeModel, AttributeTypeDecimal, AttributeTypeForeignKey, AttributeTypeInteger, AttributeTypeString } from "../Attribute";
 import { config } from "winston";
 import ReferenceAttribute, { AttributeTypeReference } from "../Reference";
+import { decryptString } from "../../../utils/crypto";
 const logger = serverLogger.child({module: "Surfer"})
 
 export const BASE_SCHEMA: AttributeModel[] = [
@@ -387,6 +388,15 @@ class Surfer {
                             logger.info(`Property ${model.name} is longer than ${model.config.maxLength} characters.`);
                             isValid = false;
                             return;
+                        }
+
+                        if (model.config.encrypted) {
+                            // Check if incoming string is encrypted
+                            if (decryptString(value) === null) {
+                                logger.info(`Property ${model.name} is not encrypted correctly.`);
+                                isValid = false;
+                                return;
+                            }
                         }
                     } 
                 break;

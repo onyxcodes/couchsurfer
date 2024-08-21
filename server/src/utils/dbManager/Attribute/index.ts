@@ -23,7 +23,7 @@ export type AttributeTypeInteger = {
 export type AttributeTypeString = {
     name: string,
     type: "string",
-    config: {maxLength?: number} & AttributeTypeConfig
+    config: {maxLength?: number, encrypted?: boolean} & AttributeTypeConfig
 }
 
 export type AttributeTypeBoolean = {

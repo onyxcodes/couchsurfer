@@ -5,6 +5,7 @@ const webpack = require("webpack");
 const HtmlWebpackPlugin = require("html-webpack-plugin");
 const MiniCssExtractPlugin = require("mini-css-extract-plugin");
 const WorkboxWebpackPlugin = require("workbox-webpack-plugin");
+require('dotenv').config({ path: './.env' }); 
 
 const isProduction = process.env.NODE_ENV == "production";
 
@@ -31,8 +32,9 @@ const config = {
     new webpack.ProvidePlugin({
       process: 'process/browser',
     }),
-    // Add your plugins here
-    // Learn more about plugins from https://webpack.js.org/configuration/plugins/
+    new webpack.EnvironmentPlugin({
+      PUBLIC_KEY: JSON.stringify(process.env.PUBLIC_KEY),
+    })
   ],
   module: {
     rules: [

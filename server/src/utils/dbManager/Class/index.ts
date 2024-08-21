@@ -41,7 +41,7 @@ class Class {
             this.type = type,
             this.attributes = [],
             this.space = null,
-            this.id = null,
+            this.id = null, this.schema = [] // in attempt to fix some undefined schema err
             this.parentClass = parentClass;
         if ( space ) {
             this.space = space;
@@ -234,7 +234,7 @@ class Class {
             let name = attribute.getName();
             if (!this.hasAttribute(name)) {
                 this.attributes.push(attribute);
-                this.schema.push(attribute.getModel());
+                this.schema.push(attribute.getModel()); // sometimes getting schema undefined
                 // update class on db
                 if (this.space && this.id) {
                     await this.space.updateClass(this);

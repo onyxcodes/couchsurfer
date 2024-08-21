@@ -5,6 +5,7 @@ dotenv.config({ path: './.env' })
 import { resolve } from 'path';
 import logger, {logRequest} from "./utils/logger/server-logger"
 import test from './utils/dbManager/test';
+import generateKeys from './utils/crypto';
 
 const app = express();
 app.use(logRequest)
@@ -18,4 +19,6 @@ app.get('*', (req, res) => {
     const templatePath = resolve(__dirname, './dist', 'index.html');
     res.sendFile(templatePath);
 });
+
+generateKeys()
 test()
