@@ -45,16 +45,16 @@ const testDataModel = async () => {
     UserClass = await Class.build(UserClass);
 
     // Create attributes and add them to the User class
-    var UsernameAttribute = new Attribute(UserClass, "username", "string", { maxLength: 50, mandatory: true });
-    var PasswordAttribute = new Attribute(UserClass, "password", "string", { maxLength: 200, mandatory: true, encrypted: true });
+    var UsernameAttribute = new Attribute(UserClass, "username", "string", { maxLength: 50, primaryKey: true, mandatory: true });
+    var PasswordAttribute = new Attribute(UserClass, "password", "string", { maxLength: 1000, mandatory: true, encrypted: true });
     var EmailAttribute = new Attribute(UserClass, "email", "string", { maxLength: 100, mandatory: false });
     var FirstNameAttribute = new Attribute(UserClass, "firstName", "string", { maxLength: 100, mandatory: false });
     var LastNameAttribute = new Attribute(UserClass, "lastName", "string", { maxLength: 100, mandatory: false });
 
-    UsernameAttribute = await Attribute.build(LastNameAttribute);
-    PasswordAttribute = await Attribute.build(LastNameAttribute);
-    EmailAttribute = await Attribute.build(LastNameAttribute);
-    FirstNameAttribute = await Attribute.build(LastNameAttribute);
+    UsernameAttribute = await Attribute.build(UsernameAttribute);
+    PasswordAttribute = await Attribute.build(PasswordAttribute);
+    EmailAttribute = await Attribute.build(EmailAttribute);
+    FirstNameAttribute = await Attribute.build(FirstNameAttribute);
     LastNameAttribute = await Attribute.build(LastNameAttribute);
 
     // console.log("UserClass -  built User class!")

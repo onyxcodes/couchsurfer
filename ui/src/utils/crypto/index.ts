@@ -1,26 +1,46 @@
-import crypto from "crypto";
-import dotenv from "dotenv";
 
-const envPath = '.env';
-
-dotenv.config({ path: envPath }); 
-
-export const encryptString = (stringToEncrypt: string) => {
-    const publicKey = process.env.PUBLIC_KEY;
-
-    if (publicKey === undefined) {
-        throw new Error("No public key found in .env file");
+// Function to convert a string to an ArrayBuffer
+const str2ab = (str: string): ArrayBuffer => {
+    const buf = new ArrayBuffer(str.length);
+    const bufView = new Uint8Array(buf);
+    for (let i = 0, strLen = str.length; i < strLen; i++) {
+      bufView[i] = str.charCodeAt(i);
     }
+    return buf;
+  }
 
-    const encryptedData = crypto.publicEncrypt(
-        {
-            key: publicKey,
-            padding: crypto.constants.RSA_PKCS1_OAEP_PADDING,
-            oaepHash: "sha256",
-        },
-        // We convert the data string to a buffer using `Buffer.from`
-        Buffer.from(stringToEncrypt)
+// Function to import the public key
+export const importPublicKey = async(pem: string): Promise<CryptoKey> => {
+    // Remove the PEM header and footer
+    const pemHeader = "-----BEGIN PUBLIC KEY-----";
+    const pemFooter = "-----END PUBLIC KEY-----";
+    const pemContents = pem.replace(pemHeader, "").replace(pemFooter, "").replace(/\n/g, "");
+    console.log("got the pemContents", pemContents)
+    // the pemContent is translated into a base64 string
+    const binaryDerString = window.atob(pemContents);
+    // the base64 string is converted to an ArrayBuffer
+    const binaryDer = str2ab(binaryDerString);
+  
+    return window.crypto.subtle.importKey(
+      "spki",
+      binaryDer,
+      {
+        name: "RSA-OAEP",
+        hash: "SHA-256"
+      },
+      true,
+      ["encrypt"]
     );
+}
 
-    return encryptedData.toString("base64");
+export const encryptStringWithPublicKey = async (publicKey: CryptoKey, data: string): Promise<ArrayBuffer> => {
+  const enc = new TextEncoder();
+  const encryptedData = await window.crypto.subtle.encrypt(
+    {
+      name: "RSA-OAEP"
+    },
+    publicKey,
+    enc.encode(data)
+  );
+  return encryptedData;
 }

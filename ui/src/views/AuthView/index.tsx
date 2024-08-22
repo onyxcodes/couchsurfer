@@ -1,24 +1,24 @@
-import { Button, TextInput } from "alenite-design"
-import { useAppDispatch } from "hooks"
+import { Button, Form, TextInput } from "alenite-design"
+import { useAppDispatch, useAppSelector } from "hooks"
 import { useCallback, useMemo } from "react"
 import { login } from "features/auth"
 
 const AuthView = () => {
-
     const dispatch = useAppDispatch();
-    const doLogin = useCallback( () => {
-        dispatch(login({}));
-    },[dispatch]);
+
+    const doLogin = useCallback( (formData: {}) => {
+        console.log("doLogin", formData);
+        dispatch(login(formData));
+    }, [dispatch]);
 
     return useMemo( () => <div>
         <span>Login</span>
-        <div>
+        <Form name={'login-form'}
+            submit={<Button type="primary">Login</Button>}
+            onSubmit={doLogin}>
             <TextInput type="text" name="username" label="Username" placeholder="a.username" />
             <TextInput type="password" name="password" label="Password" placeholder="a.password" />
-        </div>
-        <div>
-            <Button type="primary" onClick={doLogin}>Login</Button>
-        </div>
+        </Form>  
     </div>, []);
 }
 

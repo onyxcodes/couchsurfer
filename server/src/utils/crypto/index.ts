@@ -6,15 +6,12 @@ const envPath = '.env';
 
 dotenv.config({ path: envPath }); 
 
-const checkKeyPairPresence = () => {
-    const publicKey = process.env.PUBLIC_KEY;
-    const privateKey = process.env.PRIVATE_KEY;
-    
-    if ( publicKey && publicKey.length > 0 && privateKey && privateKey.length > 0 ) {
-        return true;
-    } else {
-        return false;
-    }
+const checkKeyPairPresence = (keys: string[]) => {
+    let missingKeys = keys.filter(key => {
+        return process.env[key] === undefined || process.env[key] === "";
+    });
+
+    return missingKeys;
 }
 
 const generatePair = () => {
@@ -37,12 +34,15 @@ const generatePair = () => {
     return { publicKey, privateKey };
 }
 
-const updateEnvFile = (publicKey: string, privateKey: string) => {
+const updateEnvFile = (config: {
+    [key: string]: string;
+}) => {
     const envFilePath = envPath;
     const envConfig = dotenv.parse(fs.readFileSync(envFilePath));
 
-    envConfig.PUBLIC_KEY = publicKey;
-    envConfig.PRIVATE_KEY = privateKey;
+    for (const [key, value] of Object.entries(config)) {
+        envConfig[key] = value;
+    }
 
     const envContent = Object.entries(envConfig)
         .map(([key, value]) => `${key}="${value}"`)
@@ -51,18 +51,32 @@ const updateEnvFile = (publicKey: string, privateKey: string) => {
     fs.writeFileSync(envFilePath, envContent);
 };
 
-const generateKeys = () => {
-    if ( checkKeyPairPresence() ) {
-        console.log("Key pair already exists");
+export const generatePswKeys = () => {
+    let keys = checkKeyPairPresence(["PSW_PUBLIC_KEY", "PSW_PRIVATE_KEY"]);
+    if (keys.length === 0) {
+        console.log("Password Key pair already exists");
         return;
     }
     const { publicKey, privateKey } = generatePair();
-    updateEnvFile(publicKey, privateKey);
-    console.log("Key pair generated successfully");
+    updateEnvFile({"PSW_PUBLIC_KEY": publicKey, "PSW_PRIVATE_KEY": privateKey});
+    console.log("Key pair generated successfully. Reloading .env file...");
+    dotenv.config({ override: true })
+}
+
+export const generateJwtKeys = () => {
+    let keys = checkKeyPairPresence(["JWT_PUBLIC_KEY", "JWT_PRIVATE_KEY"]);
+    if (keys.length === 0) {
+        console.log("JWT Key pair already exists");
+        return;
+    }
+    const { publicKey, privateKey } = generatePair();
+    updateEnvFile({"JWT_PUBLIC_KEY": publicKey, "JWT_PRIVATE_KEY": privateKey});
+    console.log("JWT key pair generated successfully. Reloading .env file...");
+    dotenv.config({ override: true })
 }
 
 export const encryptString = (stringToEncrypt: string) => {
-    const publicKey = process.env.PUBLIC_KEY;
+    const publicKey = process.env.PSW_PUBLIC_KEY;
   
     const encryptedData = crypto.publicEncrypt(
         {
@@ -80,16 +94,23 @@ export const encryptString = (stringToEncrypt: string) => {
 // TODO: Consider adding more params like:
 // custom padding and encoding output
 export const decryptData = (encryptedData: Buffer) => {
-    const privateKey = process.env.PRIVATE_KEY;
+    const privateKey = process.env.PSW_PRIVATE_KEY;
+    const passphrase = process.env.ENCRYPTION_PASSPHRASE;
 
     if (privateKey === undefined) {
         throw new Error("No public key found in .env file");
     }
 
+    if (passphrase === undefined) {
+        throw new Error("No passphrase found in .env file");
+    }
+
     try {
+        // const decipher = crypto.createDecipheriv('aes-256-cbc', passphrase);
         const decryptedData = crypto.privateDecrypt(
             {
               key: privateKey,
+              passphrase: passphrase,
               // In order to decrypt the data, we need to specify the
               // same hashing function and padding scheme that we used to
               // encrypt the data in the previous step
@@ -119,7 +140,5 @@ export const decryptData = (encryptedData: Buffer) => {
 export const decryptString = (stringToDecrypt: string) => {
     return decryptData(Buffer.from(stringToDecrypt, "base64"));
 }
-
-export default generateKeys;
 
 

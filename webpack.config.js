@@ -33,7 +33,7 @@ const config = {
       process: 'process/browser',
     }),
     new webpack.EnvironmentPlugin({
-      PUBLIC_KEY: JSON.stringify(process.env.PUBLIC_KEY),
+      PSW_PUBLIC_KEY: JSON.stringify(process.env.PSW_PUBLIC_KEY),
     })
   ],
   module: {

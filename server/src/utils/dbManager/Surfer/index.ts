@@ -82,6 +82,7 @@ class Surfer {
             lastDocId = doc.value;
         } catch (e) {
             if (e.name === 'not_found') {
+                logger.info("getLastDocId - not found", e)
                 return lastDocId
             }
             logger.error("checkdb - something went wrong", {"error": e});
@@ -98,6 +99,7 @@ class Surfer {
             logger.info("initdb - db info", info.backend_adapter, info.doc_count, info.update_seq);
         });
         await this.initIndex();
+        // [TODO] apply patches
         return this;
     }
 
@@ -165,6 +167,7 @@ class Surfer {
             throw new Error("initdb -  something went wrong"+e);
         }
     }
+
     static async build( that: Surfer ) {
         let result = await that.initdb();
         // dbManagerObj = await dbManagerObj.incrementLastDocId();
@@ -198,6 +201,7 @@ class Surfer {
         return _rev;
     }
 
+    // Expects a selector like { type: { $eq: "class" } }
     async findDocuments( selector: any, fields = undefined, skip = undefined, limit = undefined ) {
         let indexFields = Object.keys(selector);
         let result: {
@@ -252,7 +256,6 @@ class Surfer {
             logger.info("getClassModel - error", e)
             throw new Error(e)
         }
-        
     }
 
     async getDomainModel( domainName: string ) {
@@ -349,7 +352,10 @@ class Surfer {
     // a type and a configuration
     // Based on the configuration apply various checks on the given object's
     // value at the corresponding attribute name
-    async validateObject(obj: any, attributeModels: AttributeModel[]): Promise<boolean> {
+
+    // [TODO] Implement also for attributes of type different from string
+    // [TODO] Implement primary key check for combination of attributes and not just one
+    async validateObject(obj: any, type: string, attributeModels: AttributeModel[]): Promise<boolean> {
         logger.info("validateObject - given args", {obj: obj, attributeModels: attributeModels})
         let isValid = true;
         attributeModels.forEach(async model => {
@@ -392,8 +398,24 @@ class Surfer {
 
                         if (model.config.encrypted) {
                             // Check if incoming string is encrypted
-                            if (decryptString(value) === null) {
+                            let decryptedString = decryptString(value);
+                            console.log("decryptedString", decryptedString)
+                            if (decryptedString === null) {
                                 logger.info(`Property ${model.name} is not encrypted correctly.`);
+                                isValid = false;
+                                return;
+                            }
+                        }
+
+                        if (model.config.primaryKey) {
+                            logger.info("primaryKey check", {type, model, value})
+                            // Check if the value is unique
+                            let duplicates = await this.findDocuments({
+                                "type": { $eq: type },
+                                [model.name]: { $eq: value }
+                            })
+                            if (duplicates.docs.length > 0) {
+                                logger.info(`A card with property ${model.name} already exists.`, duplicates);
                                 isValid = false;
                                 return;
                             }
@@ -528,7 +550,7 @@ class Surfer {
             }
         }
         
-        return await this.validateObject(obj, schema);
+        return await this.validateObject(obj, type, schema);
     }
 
     prepareDoc (_id: string, type: string, params: object) {
