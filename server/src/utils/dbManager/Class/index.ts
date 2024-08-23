@@ -1,9 +1,10 @@
 import Attribute, { AttributeModel, AttributeType } from '../Attribute'
 import Surfer, { Document } from '../Surfer';
 // import DbManager from '..';
-import serverLogger from "../../../utils/logger/server-logger";
+import getLogger from "../../../utils/logger";
 import ReferenceAttribute from '../Reference';
-const logger = serverLogger.child({module: "Surfer"})
+
+const logger = getLogger().child({module: "Surfer"})
 
 const CLASS_TYPE = "class";
 const SUPERCLASS_TYPE = "superclass";
@@ -165,7 +166,7 @@ class Class {
     }
 
     getAttributes( ...names: string[] ) {
-        let attributes = [ ];
+        let attributes: Attribute[] = [ ];
         for ( let attribute of this.attributes ) {
             if ( names.length > 0 ) {
                 // filter with given names
@@ -252,6 +253,23 @@ class Class {
     // consider first fetching/updating the local class model
     async addCard(params: {[key:string]: any}) {
         return await this.space.createDoc(null, this, params);
+    }
+
+    async addOrUpdateCard(params: {[key:string]: any}, cardId: string) {
+        if (cardId) return this.updateCard(cardId, params);
+
+        // attempt to retreive card by primary key
+        let filter = {}
+        this.getPrimaryKeys().reduce(
+            (accumulator, currentValue) => accumulator[currentValue] = params[currentValue],
+            filter,
+        );
+        let cards = await this.getCards(filter, null, 0, 1);
+        if (cards.length > 0) { 
+            return this.updateCard(cards[0]._id, params);
+        } else {
+            return this.addCard(params);
+        }
     }
 
     async updateCard(cardId: string, params: {[key:string]: any}) {

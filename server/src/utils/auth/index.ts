@@ -11,6 +11,7 @@ export const generateToken = (payload: {
     username: string;
     id: string;
     email: string;
+    sessionId: string;
 }) => {
     const secretKey = process.env.JWT_PRIVATE_KEY;
 
@@ -33,7 +34,7 @@ export const login = async (username: string, password: string) => {
     }
 
     // Add your login logic here
-    const userDoc = await globalThis.surferInstance.findDocument({
+    const userDoc = await globalThis.surfer.findDocument({
         "type": "User",
         username: { $eq: username },
     }) as Document
@@ -43,23 +44,33 @@ export const login = async (username: string, password: string) => {
     }
 
     const storedDecryptedPsw = decryptString(userDoc.password)
-
     const receivedDecryptedPsw = decryptString(password);
+
     if ( receivedDecryptedPsw === storedDecryptedPsw) {
         // Create session document
-        const UserSessionClass = await (globalThis.surferInstance as Surfer).getClass("UserSession");
-        // const sessionCard = await UserSessionClass.addCard({
-        //     username: userDoc.username,
-        //     sessionId: hashStringEpoch(userDoc.username), //PK
-        //     sessionStart: new Date().toISOString(),
-        // });
+        const UserSessionClass = await (globalThis.surfer as Surfer).getClass("UserSession");
+        const sessionCard = await UserSessionClass.addOrUpdateCard({
+            username: userDoc.username,
+            sessionId: hashStringEpoch(userDoc.username), //PK
+            sessionStart: new Date().toISOString(),
+            sessionStatus: "active",
+        }, null);
         // Generate JWT token
         const token = generateToken({
             username: userDoc.username,
             id: userDoc.id,
             email: userDoc.email,
+            sessionId: sessionCard.sessionId
         }) // return the token and expiration time (1h)
-        return { responseCode: 200, body: { success: true, message: 'Login successful', token, expiresIn: 3600 }};
+
+        const body = {
+            success: true,
+            message: 'Login successful',
+            token,
+            expiresIn: 3600,
+            sessionId: sessionCard.sessionId
+        }
+        return { responseCode: 200, body };
     } else {
         return { responseCode: 401, body: { error: 'Incorrect password' }};
     }

@@ -4,20 +4,28 @@ import * as dotenv from "dotenv";
 import cors from "cors";
 dotenv.config({ path: './.env' })
 import { resolve } from 'path';
-import logger, {logRequest} from "./utils/logger/server-logger"
+import getLogger, {logRequest} from "./utils/logger"
 import test from './utils/dbManager/test';
 import { decryptString, generateJwtKeys, generatePswKeys } from './utils/crypto';
 import Surfer from './utils/dbManager/Surfer';
 import { login } from './utils/auth';
+// import memoryAdapter from "pouchdb-adapter-memory"
+
+const logger = getLogger().child({module: "express"})
 
 const app = express();
 app.use(logRequest)
 
 const initInstance = async () => {
-    surferInstance = new Surfer("db-test", {adapter: 'memory', plugins: [ 
-    ]});
-    surferInstance = await Surfer.build(surferInstance);
-    globalThis.surferInstance = surferInstance;
+    const surfer = await Surfer.create("db-test", {
+        // defaults to leveldb
+        // adapter: 'memory', 
+        plugins: [
+        // https://www.npmjs.com/package/pouchdb-adapter-memory
+        // memoryAdapter
+        ]
+    });
+    globalThis.surfer = surfer;
 }
 
 // Enable CORS for all routes
@@ -52,7 +60,6 @@ app.post('/login', async (req, res) => {
 const port = process.env.SERVER_PORT || 5000;
 
 const server = app.listen(port, () => logger.info(`Listening on port ${port}`));
-let surferInstance: Surfer;
 
 // Server initialization procedures
 generatePswKeys()

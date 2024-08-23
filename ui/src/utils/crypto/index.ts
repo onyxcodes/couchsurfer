@@ -15,7 +15,6 @@ export const importPublicKey = async(pem: string): Promise<CryptoKey> => {
     const pemHeader = "-----BEGIN PUBLIC KEY-----";
     const pemFooter = "-----END PUBLIC KEY-----";
     const pemContents = pem.replace(pemHeader, "").replace(pemFooter, "").replace(/\n/g, "");
-    console.log("got the pemContents", pemContents)
     // the pemContent is translated into a base64 string
     const binaryDerString = window.atob(pemContents);
     // the base64 string is converted to an ArrayBuffer

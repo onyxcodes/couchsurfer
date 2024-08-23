@@ -7,7 +7,6 @@ const AuthView = () => {
     const dispatch = useAppDispatch();
 
     const doLogin = useCallback( (formData: {}) => {
-        console.log("doLogin", formData);
         dispatch(login(formData));
     }, [dispatch]);
 

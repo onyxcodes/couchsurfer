@@ -1,13 +1,14 @@
 import NodePouchDB from "pouchdb-node";
 import Find from 'pouchdb-find'
-import serverLogger from "../../../utils/logger/server-logger";
+import getLogger from "../../../utils/logger/";
 import Class, { ClassModel } from "../Class";
 import Domain, { DomainModel } from "../Domain";
 import { AttributeModel, AttributeTypeDecimal, AttributeTypeForeignKey, AttributeTypeInteger, AttributeTypeString } from "../Attribute";
 import { config } from "winston";
 import ReferenceAttribute, { AttributeTypeReference } from "../Reference";
 import { decryptString } from "../../../utils/crypto";
-const logger = serverLogger.child({module: "Surfer"})
+
+const logger = getLogger().child({module: "Surfer"})
 
 export const BASE_SCHEMA: AttributeModel[] = [
     { name: "name", type: "string", config: { maxLength: 100 } },
@@ -63,17 +64,52 @@ class Surfer {
     lastDocId: number;
     public static version: string = "0.0.1";
 
-    constructor(conn: string,  options?: SurferOptions) {
-        // load default plugins
-        NodePouchDB.plugin(Find)
-        if (options.plugins) {
-            for (let plugin of options.plugins) {
-                NodePouchDB.plugin(plugin)
-            }
-        }
-        this.db = new NodePouchDB(conn)
+    // constructor(conn: string,  options?: SurferOptions) {
+    //     // load default plugins
+    //     NodePouchDB.plugin(Find)
+    //     if (options.plugins) {
+    //         for (let plugin of options.plugins) {
+    //             NodePouchDB.plugin(plugin)
+    //         }
+    //     }
+    //     this.db = new NodePouchDB(conn)
+    // }
+
+    private constructor() {
+        // Private constructor to prevent direct instantiation
     }
 
+    private async initialize(conn: string, options?: SurferOptions) {
+        let PouchDB: typeof import('pouchdb-core');
+        let Find: typeof import('pouchdb-find');
+
+        if (typeof window !== 'undefined') {
+            // Running in a browser
+            PouchDB = (await import('pouchdb-browser')).default;
+            Find = (await import('pouchdb-find')).default;
+        } else {
+            // Running in Node.js
+            PouchDB = (await import('pouchdb-node')).default;
+            Find = (await import('pouchdb-find')).default;
+        }
+
+        // Load default plugins
+        PouchDB.plugin(Find);
+        if (options?.plugins) {
+            for (let plugin of options.plugins) {
+                PouchDB.plugin(plugin);
+            }
+        }
+        this.db = new PouchDB(conn);
+    }
+
+    // asynchronous factory method
+    public static async create(conn: string, options?: SurferOptions): Promise<Surfer> {
+        const surfer = new Surfer();
+        await surfer.initialize(conn, options);
+        await surfer.initdb()
+        return surfer;
+    }
     
     async getLastDocId() {
         let lastDocId = 0;
@@ -358,173 +394,181 @@ class Surfer {
     async validateObject(obj: any, type: string, attributeModels: AttributeModel[]): Promise<boolean> {
         logger.info("validateObject - given args", {obj: obj, attributeModels: attributeModels})
         let isValid = true;
-        attributeModels.forEach(async model => {
-            let value = obj[model.name];
-    
-            // Check if the property exists
-            if (value === undefined && model.config.mandatory) {
-                logger.info(`Property ${model.name} does not exist on the object.`);
-                isValid = false;
-                return;
-            }
-
-            if ( !model.config.mandatory && value === undefined ) {
-                return;
-            }
-
-            // update object's value to the default value
-            if (model.config.defaultValue && value === undefined) {
-                obj[model.name] = model.config.defaultValue;
-                value = obj[model.name];
-            }
+        try {
+            // attributeModels.forEach(async model => {
+            for (let model of attributeModels) {
+                let value = obj[model.name];
         
-            switch(model.type) {
-                case 'string':
-                    if (!model.config.isArray && typeof value !== model.type) {
-                        logger.info(`Property ${model.name} is not of type ${model.type}.`);
-                        isValid = false;
-                        return;
-                    } else if (model.config.isArray && !Array.isArray(value)) {
-                        logger.info(`Property ${model.name} is not an array.`);
-                        isValid = false;
-                        return;
-                    }
-                    if (model.config as AttributeTypeString["config"]) {
-                        if  (model.config.maxLength && value.length > model.config.maxLength) {
-                            logger.info(`Property ${model.name} is longer than ${model.config.maxLength} characters.`);
+                // Check if the property exists
+                if (value === undefined && model.config.mandatory) {
+                    logger.info(`Property ${model.name} does not exist on the object.`);
+                    isValid = false;
+                    return;
+                }
+    
+                if ( !model.config.mandatory && value === undefined ) {
+                    return;
+                }
+    
+                // update object's value to the default value
+                if (model.config.defaultValue && value === undefined) {
+                    obj[model.name] = model.config.defaultValue;
+                    value = obj[model.name];
+                }
+            
+                switch(model.type) {
+                    case 'string':
+                        if (!model.config.isArray && typeof value !== model.type) {
+                            logger.info(`Property ${model.name} is not of type ${model.type}.`);
                             isValid = false;
                             return;
-                        }
-
-                        if (model.config.encrypted) {
-                            // Check if incoming string is encrypted
-                            let decryptedString = decryptString(value);
-                            console.log("decryptedString", decryptedString)
-                            if (decryptedString === null) {
-                                logger.info(`Property ${model.name} is not encrypted correctly.`);
-                                isValid = false;
-                                return;
-                            }
-                        }
-
-                        if (model.config.primaryKey) {
-                            logger.info("primaryKey check", {type, model, value})
-                            // Check if the value is unique
-                            let duplicates = await this.findDocuments({
-                                "type": { $eq: type },
-                                [model.name]: { $eq: value }
-                            })
-                            if (duplicates.docs.length > 0) {
-                                logger.info(`A card with property ${model.name} already exists.`, duplicates);
-                                isValid = false;
-                                return;
-                            }
-                        }
-                    } 
-                break;
-                case 'decimal':
-                    // TODO: decide how to interpret decimal
-                    if (model.config as AttributeTypeDecimal["config"] ) {
-                        if (model.config.min && value < model.config.min) {
-                            logger.info(`Property ${model.name} is less than ${model.config.min}.`);
+                        } else if (model.config.isArray && !Array.isArray(value)) {
+                            logger.info(`Property ${model.name} is not an array.`);
                             isValid = false;
-                            return;
-                        }
-                        if (model.config.max && value > model.config.max) {
-                            logger.info(`Property ${model.name} is greater than ${model.config.max}.`);
-                            isValid = false;
-                            return;
-                        }
-                    }
-
-                break;
-                case 'integer':
-                    if (!model.config.isArray && typeof value !== 'number') {
-                        logger.info(`Property ${model.name} is not of type ${model.type}.`);
-                    } else if (model.config.isArray && (
-                            !Array.isArray(value) || !value.every((v) => typeof v === 'number')
-                        )){
-                        logger.info(`Property ${model.name} is not an array.`);
-                        isValid = false;
-                        return;
-                    }
-                    if (model.config as AttributeTypeInteger["config"] ) {
-                        if (model.config.min && value < model.config.min) {
-                            logger.info(`Property ${model.name} is less than ${model.config.min}.`);
-                            isValid = false;
-                            return;
-                        }
-                        if (model.config.max && value > model.config.max) {
-                            logger.info(`Property ${model.name} is greater than ${model.config.max}.`);
-                            isValid = false;
-                            return;
-                        }
-                    }
-
-                break;
-                case "foreign_key":
-                    model.config as AttributeTypeForeignKey["config"]
-                    // check if foreign key corresponds to an existing document
-                    let foreignKeyDoc = await this.getDocument(value);
-                    if (foreignKeyDoc == null) {
-                        logger.info(`Foreign key ${value} does not exist.`);
-                        isValid = false;
-                        return;
-                    }
-                break;
-                case "reference":
-                    model.config as AttributeTypeReference["config"]
-                    var domain = await this.getDomain(model.config.domain)
-                    if (domain == null) {
-                        logger.info(`Reference domain ${model.config.domain} does not exist.`);
-                        isValid = false;
-                        return;
-                    }
-                    // check if the reference it points to exists
-                    let reference = await this.getDocument(value)
-                    if (reference == null) {
-                        logger.info(`Reference ${value} does not exist.`);
-                        isValid = false;
-                        return;
-                    }
-                    switch (domain.relationType) {
-                        case "one-to-one":
-                            // check if the reference is unique
-                            // based on the position of the reference
-                            var selector = {
-                                type: { $eq: domain.name },
-                                [model.config.position]: { $eq: value }
-                            }
-                            var result = await this.findDocument(selector)
-                            if (result) {
-                                logger.info(`Reference ${value} is not unique.`);
-                                isValid = false;
-                                return;
-                            }
-                        break;
-                        case "one-to-many":
-                            // check if the reference is unique
-                            // based on the position of the reference
-                            var selector = {
-                                type: { $eq: domain.name },
-                                [model.config.position]: { $eq: value }
-                                
-                            }
-                            var result = await this.findDocument(selector)
-                            if (result) {
-                                logger.info(`Reference ${value} is not unique.`);
-                                isValid = false;
-                                return;
-                            }
                             break;
-                    }
-
-                break;
-                default:
-                    logger.info("Probably an attribute? Huh", model)
+                        }
+                        if (model.config as AttributeTypeString["config"]) {
+                            if  (model.config.maxLength && value.length > model.config.maxLength) {
+                                logger.info(`Property ${model.name} is longer than ${model.config.maxLength} characters.`);
+                                isValid = false;
+                                break;
+                            }
+    
+                            if (model.config.encrypted) {
+                                // Check if incoming string is encrypted
+                                let decryptedString = decryptString(value);
+                                console.log("decryptedString", decryptedString)
+                                if (decryptedString === null) {
+                                    logger.info(`Property ${model.name} is not encrypted correctly.`);
+                                    isValid = false;
+                                    break;
+                                }
+                            }
+    
+                            if (model.config.primaryKey) {
+                                logger.info("primaryKey check", {type, model, value})
+                                // Check if the value is unique
+                                let duplicates = await this.findDocuments({
+                                    "type": { $eq: type },
+                                    [model.name]: { $eq: value }
+                                })
+                                if (duplicates.docs.length > 0) {
+                                    logger.info(`A card with property ${model.name} already exists.`, duplicates);
+                                    throw new Error(`A card with property ${model.name} already exists.`);
+                                }
+                            }
+                        } 
+                    break;
+                    case 'decimal':
+                        // TODO: decide how to interpret decimal
+                        if (model.config as AttributeTypeDecimal["config"] ) {
+                            if (model.config.min && value < model.config.min) {
+                                logger.info(`Property ${model.name} is less than ${model.config.min}.`);
+                                isValid = false;
+                                return;
+                            }
+                            if (model.config.max && value > model.config.max) {
+                                logger.info(`Property ${model.name} is greater than ${model.config.max}.`);
+                                isValid = false;
+                                return;
+                            }
+                        }
+    
+                    break;
+                    case 'integer':
+                        if (!model.config.isArray && typeof value !== 'number') {
+                            logger.info(`Property ${model.name} is not of type ${model.type}.`);
+                        } else if (model.config.isArray && (
+                                !Array.isArray(value) || !value.every((v) => typeof v === 'number')
+                            )){
+                            logger.info(`Property ${model.name} is not an array.`);
+                            isValid = false;
+                            return;
+                        }
+                        if (model.config as AttributeTypeInteger["config"] ) {
+                            if (model.config.min && value < model.config.min) {
+                                logger.info(`Property ${model.name} is less than ${model.config.min}.`);
+                                isValid = false;
+                                return;
+                            }
+                            if (model.config.max && value > model.config.max) {
+                                logger.info(`Property ${model.name} is greater than ${model.config.max}.`);
+                                isValid = false;
+                                return;
+                            }
+                        }
+    
+                    break;
+                    case "foreign_key":
+                        model.config as AttributeTypeForeignKey["config"]
+                        // check if foreign key corresponds to an existing document
+                        let foreignKeyDoc = await this.getDocument(value);
+                        if (foreignKeyDoc == null) {
+                            logger.info(`Foreign key ${value} does not exist.`);
+                            isValid = false;
+                            return;
+                        }
+                    break;
+                    case "reference":
+                        model.config as AttributeTypeReference["config"]
+                        var domain = await this.getDomain(model.config.domain)
+                        if (domain == null) {
+                            logger.info(`Reference domain ${model.config.domain} does not exist.`);
+                            isValid = false;
+                            return;
+                        }
+                        // check if the reference it points to exists
+                        let reference = await this.getDocument(value)
+                        if (reference == null) {
+                            logger.info(`Reference ${value} does not exist.`);
+                            isValid = false;
+                            return;
+                        }
+                        switch (domain.relationType) {
+                            case "one-to-one":
+                                // check if the reference is unique
+                                // based on the position of the reference
+                                var selector = {
+                                    type: { $eq: domain.name },
+                                    [model.config.position]: { $eq: value }
+                                }
+                                var result = await this.findDocument(selector)
+                                if (result) {
+                                    logger.info(`Reference ${value} is not unique.`);
+                                    isValid = false;
+                                    return;
+                                }
+                            break;
+                            case "one-to-many":
+                                // check if the reference is unique
+                                // based on the position of the reference
+                                var selector = {
+                                    type: { $eq: domain.name },
+                                    [model.config.position]: { $eq: value }
+                                    
+                                }
+                                var result = await this.findDocument(selector)
+                                if (result) {
+                                    logger.info(`Reference ${value} is not unique.`);
+                                    isValid = false;
+                                    return;
+                                }
+                                break;
+                        }
+    
+                    break;
+                    default:
+                        logger.info("Probably an attribute? Huh", model)
+                }
+    
+                if (isValid == false) return;
             }
-        })
-        logger.info("validateObject - result", {result: isValid})
+        } catch (e) {
+            logger.info("validateObject - error", e)
+            return false;
+        }
+        
+        logger.info("validateObject - result", {type, result: isValid})
         return isValid;
     }
 

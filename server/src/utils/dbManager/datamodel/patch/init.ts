@@ -55,6 +55,60 @@ const patch = {
         }
       ],
       // "_rev": "1-f09d93de1ed4266eb40dca6ceb5a44de"
+    },
+    {
+      "_id": "UserSession",
+      "name": "UserSession",
+      "description": "Tracks user sessions",
+      "type": "class",
+      "schema": [
+        {
+          "name": "username",
+          "type": "string",
+          "config": {
+            "maxLength": 50,
+            "isArray": false,
+            "primaryKey": true,
+            "mandatory": true
+          }
+        },
+        {
+          "name": "sessionId",
+          "type": "string",
+          "config": {
+            "maxLength": 200,
+            "isArray": false,
+            "mandatory": true
+          }
+        },
+        {
+          "name": "sessionStart",
+          "type": "string",
+          "config": {
+            "maxLength": 100,
+            "isArray": false,
+            "mandatory": true
+          }
+        },
+        {
+          "name": "sessionStatus",
+          "type": "string",
+          "config": {
+            "maxLength": 100,
+            "isArray": false,
+            "mandatory": true
+          }
+        },
+        {
+          "name": "sessionEnd",
+          "type": "string",
+          "config": {
+            "maxLength": 100,
+            "isArray": false,
+            "mandatory": false
+          }
+        }
+      ]
     }
   ]
 }

@@ -8,11 +8,9 @@ const testDataModel = async () => {
     console.log("Starting")
     // Surfer.clear("db-test")
     // return;
-    let surferInstance = new Surfer("db-test", {adapter: 'memory', plugins: [
-        
+    let testSurfer = await Surfer.create("db-test", {adapter: 'memory', plugins: [
     ]});
-    surferInstance = await Surfer.build(surferInstance);
-    var TestClass = new Class(surferInstance, "TestClass", "class", "A test");
+    var TestClass = new Class(testSurfer, "TestClass", "class", "A test");
     // Create attribute and adds it to above class
     var TestAttribute = new Attribute(TestClass, "TestAttribute", "string", { maxLength: 100 });
     
@@ -35,13 +33,13 @@ const testDataModel = async () => {
     let TestAnotherAttrWithClass = new Attribute(TestClass, "TestAnotherAttrWithClass", "string", { maxLength: 100, isArray: true });
     TestAnotherAttrWithClass = await Attribute.build(TestAnotherAttrWithClass);
     console.log("result", {result: TestClass.getModel()})
-    let aDocument = await surferInstance.createDoc(null, TestClass, {TestAttribute: "TestValue", TestAnotherAttrWithClass: ["TestValue1", "TestValue2"]});
+    let aDocument = await testSurfer.createDoc(null, TestClass, {TestAttribute: "TestValue", TestAnotherAttrWithClass: ["TestValue1", "TestValue2"]});
     console.log("aDocument was created", aDocument)
     let testclassDocs = await TestClass.getCards(null, null, 0, undefined);
     // console.log("allDocs of class TestClass", allDocs)
     // let allDocs = await 
 
-    var UserClass = new Class(surferInstance, "User", "class", "A user class for secure login");
+    var UserClass = new Class(testSurfer, "User", "class", "A user class for secure login");
     UserClass = await Class.build(UserClass);
 
     // Create attributes and add them to the User class
@@ -56,27 +54,42 @@ const testDataModel = async () => {
     EmailAttribute = await Attribute.build(EmailAttribute);
     FirstNameAttribute = await Attribute.build(FirstNameAttribute);
     LastNameAttribute = await Attribute.build(LastNameAttribute);
-
-    // console.log("UserClass -  built User class!")
-    // UserClass = await Class.build(UserClass);
     
     console.log({"User": JSON.stringify(UserClass.getModel(), null, 2)})
 
     const encryptedPassword = encryptString("admin");
-    let userDocument = await surferInstance.createDoc(null, UserClass, {username: "admin", password: encryptedPassword, email: "admin@email.com", firstName: "FirstName", lastName: "LastName"});
+    let userDocument = await testSurfer.createDoc(null, UserClass, {username: "admin", password: encryptedPassword, email: "admin@email.com", firstName: "FirstName", lastName: "LastName"});
 
     console.log("userDocument was created", userDocument)
     let userDocs = await UserClass.getCards(null, null, 0, undefined);
 
     console.log("userDocs", userDocs)
-    // let MyDomain = new Domain(surferInstance, "MyDomain", "My Domain", ["TestClass"], ["TestClass"], "one-to-one");
+
+    var UserSessionClass = new Class(testSurfer, "UserSession", "class", "Tracks user sessions");
+    UserSessionClass = await Class.build(UserSessionClass);
+
+    // Create attributes and add them to the User class
+    var SUsernameAttribute = new Attribute(UserSessionClass, "username", "string", { maxLength: 50, primaryKey: true, mandatory: true });
+    var SessionIdAttribute = new Attribute(UserSessionClass, "sessionId", "string", { maxLength: 200, mandatory: true });
+    var SessionStartAttribute = new Attribute(UserSessionClass, "sessionStart", "string", { maxLength: 100, mandatory: true });
+    var SessionStatusAttribute = new Attribute(UserSessionClass, "sessionStatus", "string", { maxLength: 100, mandatory: true });
+    var SessionEndAttribute = new Attribute(UserSessionClass, "sessionEnd", "string", { maxLength: 100, mandatory: false });
+
+    SUsernameAttribute = await Attribute.build(SUsernameAttribute);
+    SessionIdAttribute = await Attribute.build(SessionIdAttribute);
+    SessionStartAttribute = await Attribute.build(SessionStartAttribute);
+    SessionStatusAttribute = await Attribute.build(SessionStatusAttribute);
+    SessionEndAttribute = await Attribute.build(SessionEndAttribute);
+    
+    console.log({"UserSessionClass": JSON.stringify(UserSessionClass.getModel(), null, 2)})
+    
 }
 
 export default testDataModel;
 
 
 // FAILS
-// var UserClass = new Class(surferInstance, "User", "class", "A user class for secure login");
+// var UserClass = new Class(testSurfer, "User", "class", "A user class for secure login");
 
 // // Create attributes and add them to the User class
 // var UsernameAttribute = new Attribute(UserClass, "username", "string", { maxLength: 50, mandatory: true });
