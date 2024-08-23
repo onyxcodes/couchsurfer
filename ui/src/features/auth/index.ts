@@ -1,4 +1,4 @@
-import { createSlice, createAsyncThunk, createReducer } from '@reduxjs/toolkit';
+import { createSlice, createAsyncThunk, createReducer, nanoid } from '@reduxjs/toolkit';
 import { encryptStringWithPublicKey, importPublicKey  } from 'utils/crypto';
 
 export interface AuthState {
@@ -50,7 +50,21 @@ const doLogin = async (data: {
 export const login = createAsyncThunk('login', 
   async ( data: any, thunkApi) => {
     let response = await doLogin(data);
-    console.log("login response", response);
+    if (response.success) {
+      const jwtToken = response.token;
+      /* Consider that when testing on localhost it may throw an error like
+        Cookie “jwtToken” has been rejected because there is already an HTTP-Only cookie but script tried to store a new one.
+      */
+      // document.cookie = `jwtToken=${jwtToken}; HttpOnly; SameSite=Strict;`;
+      document.cookie = `jwtToken=${jwtToken}; SameSite=Strict;`;
+
+      return {
+        ...response,
+        token: nanoid(), // :)
+      };
+    } else {
+      return thunkApi.rejectWithValue(response);
+    }
   }
 );
 
@@ -61,21 +75,22 @@ export const logout = createAsyncThunk('logout',
 );
 
 const auth = createReducer(initialState, builder => { builder
-    .addCase(login.fulfilled, (state, action) => {
-        state.isAuthenticated = true;
-    })
-    .addCase(login.rejected, (state, action) => {
-        // TODO
-        console.error(action.error);
-    })
-    .addCase(logout.fulfilled, (state, action) => {
-        state.isAuthenticated = false;
-    })
-    .addCase(logout.rejected, (state, action) => {
-        // TODO
-        console.error(action.error);
-    })
+  .addCase(login.fulfilled, (state, action) => {
+    state.isAuthenticated = true;
+  })
+  .addCase(login.rejected, (state, action) => {
+      // TODO
+      console.error(action.error);
+  })
+  .addCase(logout.fulfilled, (state, action) => {
+      state.isAuthenticated = false;
+  })
+  .addCase(logout.rejected, (state, action) => {
+      // TODO
+      console.error(action.error);
+  })
 });
+
 const authSlice = createSlice({
   name: 'auth',
   initialState,

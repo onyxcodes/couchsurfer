@@ -7,7 +7,8 @@ import { resolve } from 'path';
 import logger, {logRequest} from "./utils/logger/server-logger"
 import test from './utils/dbManager/test';
 import { decryptString, generateJwtKeys, generatePswKeys } from './utils/crypto';
-import Surfer, {Document} from './utils/dbManager/Surfer';
+import Surfer from './utils/dbManager/Surfer';
+import { login } from './utils/auth';
 
 const app = express();
 app.use(logRequest)
@@ -16,6 +17,7 @@ const initInstance = async () => {
     surferInstance = new Surfer("db-test", {adapter: 'memory', plugins: [ 
     ]});
     surferInstance = await Surfer.build(surferInstance);
+    globalThis.surferInstance = surferInstance;
 }
 
 // Enable CORS for all routes
@@ -37,34 +39,13 @@ app.get('*', (req, res) => {
 });
 
 app.post('/login', async (req, res) => {
-    console.log("login request received", req)
     try {
         const { username, password } = req.body;
-        if (!username || !password) {
-            return res.status(400).json({ error: 'Username and encrypted password are required' });
-        }
-
-        // Add your login logic here
-        const userDoc = await surferInstance.findDocument({
-            "type": "User",
-            username: { $eq: username },
-        }) as Document
-
-        if (!userDoc) {
-            return res.status(404).json({ error: 'User not found'});
-        }
-
-        const storedDecryptedPsw = decryptString(userDoc.password)
-
-        const receivedDecryptedPsw = decryptString(password);
-        if ( receivedDecryptedPsw === storedDecryptedPsw) {
-            return res.status(200).json({ message: 'Login successful' });
-        } else {
-            return res.status(401).json({ error: 'Incorrect password' });
-        }
+        const { responseCode, body } = await login(username, password);
+        return res.status(responseCode).json(body);
     } catch (error) {
-        console.error(error);
-        return res.status(500).json({ error: 'An error occurred' });
+        console.error("Error during login", error);
+        return res.status(500).json({ success: false, error: 'An error occurred' });
     }
 });
 

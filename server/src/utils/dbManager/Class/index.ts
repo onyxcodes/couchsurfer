@@ -78,7 +78,7 @@ class Class {
     static async buildFromModel(space: Surfer, classModel: ClassModel) {
         let parentClassModel = (classModel.parentClass ? await space.getClassModel(classModel.parentClass) : null);
         let parentClass = (parentClassModel ? await Class.buildFromModel(space, parentClassModel) : null);
-        let classObj = new Class(space, classModel.name, classModel.type, classModel.type, parentClass);
+        let classObj: Class = new Class(space, classModel.name, classModel.type, classModel.type, parentClass);
         classObj.setModel(classModel);
         return classObj;
     }

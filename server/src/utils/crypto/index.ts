@@ -14,6 +14,10 @@ const checkKeyPairPresence = (keys: string[]) => {
     return missingKeys;
 }
 
+export const hashStringEpoch = (string: string) => {
+    return crypto.createHash('sha256').update(string + Date.now()).digest('base64');
+}
+
 const generatePair = () => {
     // Placeholder method, aimed to provide in the future additional
     // customizations for the key pair generation
@@ -62,7 +66,6 @@ export const generatePswKeys = () => {
     console.log("Key pair generated successfully. Reloading .env file...");
     dotenv.config({ override: true })
 }
-
 export const generateJwtKeys = () => {
     let keys = checkKeyPairPresence(["JWT_PUBLIC_KEY", "JWT_PRIVATE_KEY"]);
     if (keys.length === 0) {
