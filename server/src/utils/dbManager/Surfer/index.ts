@@ -60,9 +60,9 @@ type SurferOptions = {
 } & PouchDB.Configuration.DatabaseConfiguration 
 
 class Surfer {
-    public db: PouchDB.Database<{}> = undefined;
-    lastDocId: number;
-    public static version: string = "0.0.1";
+    private db: PouchDB.Database<{}> = undefined;
+    private lastDocId: number;
+    private static version: string = "0.0.1";
 
     // constructor(conn: string,  options?: SurferOptions) {
     //     // load default plugins
@@ -149,39 +149,39 @@ class Surfer {
     //     return domainObj;
     // }
 
-    async setSystem() {
-        let dbInfo = await this.db.info();
-        logger.info("setSystem - db info", dbInfo)
-        let systemClass: Class;
-        try {
-            systemClass = await this.getClass("System");
-        } catch (e) {
-            // system class does not exist
-            // create it from base data model
-            systemClass = await this.getClass("System"); // TEMP
-        }
-        let currentSystem = await systemClass.getCards({
-            db_name: dbInfo.db_name,
-            backend_adapter: dbInfo.backend_adapter,
-        }, null, null, null);
-        if (currentSystem.length == 0) {
-            let systemDoc = {
-                db_name: dbInfo.db_name,
-                backend_adapter: dbInfo.backend_adapter,
-                doc_count: dbInfo.doc_count,
-                update_seq: dbInfo.update_seq,
-                version: Surfer.version,
-                patch: null
-            }
-            await systemClass.addCard(systemDoc);
-        } else {
-            let systemDoc = {
-                doc_count: dbInfo.doc_count,
-                update_seq: dbInfo.update_seq,
-            }
-            await systemClass.updateCard(currentSystem[0]._id, systemDoc);
-        }
-    }
+    // async setSystem() {
+    //     let dbInfo = await this.db.info();
+    //     logger.info("setSystem - db info", dbInfo)
+    //     let systemClass: Class;
+    //     try {
+    //         systemClass = await this.getClass("System");
+    //     } catch (e) {
+    //         // system class does not exist
+    //         // create it from base data model
+    //         systemClass = await this.getClass("System"); // TEMP
+    //     }
+    //     let currentSystem = await systemClass.getCards({
+    //         db_name: dbInfo.db_name,
+    //         backend_adapter: dbInfo.backend_adapter,
+    //     }, null, null, null);
+    //     if (currentSystem.length == 0) {
+    //         let systemDoc = {
+    //             db_name: dbInfo.db_name,
+    //             backend_adapter: dbInfo.backend_adapter,
+    //             doc_count: dbInfo.doc_count,
+    //             update_seq: dbInfo.update_seq,
+    //             version: Surfer.version,
+    //             patch: null
+    //         }
+    //         await systemClass.addCard(systemDoc);
+    //     } else {
+    //         let systemDoc = {
+    //             doc_count: dbInfo.doc_count,
+    //             update_seq: dbInfo.update_seq,
+    //         }
+    //         await systemClass.updateCard(currentSystem[0]._id, systemDoc);
+    //     }
+    // }
     async initIndex () {
         try {
             let lastDocId: number = await this.getLastDocId();
