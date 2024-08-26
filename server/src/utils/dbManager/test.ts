@@ -9,7 +9,7 @@ const testDataModel = async () => {
     // Surfer.clear("db-test")
     // return;
     let testSurfer = await Surfer.create("db-test", {plugins: []});
-    console.log("testDataModel -  built surfer instance. Name: ", testSurfer.db.name)
+    console.log("testDataModel -  built surfer instance. Name: ", testSurfer.getDbName())
     var TestClass = await Class.create(testSurfer, "TestClass", "class", "A test");
     console.log("testDataModel -  Create class. Got model", TestClass.getModel())
     // Create attribute and adds it to above class

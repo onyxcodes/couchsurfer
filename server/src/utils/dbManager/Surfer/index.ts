@@ -103,6 +103,14 @@ class Surfer {
         this.db = new PouchDB(conn);
     }
 
+    public async getDbInfo() {
+        return this.db.info();
+    }
+
+    public getDbName() {
+        return this.db.name;
+    }
+
     // asynchronous factory method
     public static async create(conn: string, options?: SurferOptions): Promise<Surfer> {
         const surfer = new Surfer();
