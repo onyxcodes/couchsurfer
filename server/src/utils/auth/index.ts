@@ -50,8 +50,8 @@ export const login = async (username: string, password: string) => {
         // Create session document
         const UserSessionClass = await (globalThis.surfer as Surfer).getClass("UserSession");
         const sessionCard = await UserSessionClass.addOrUpdateCard({
-            username: userDoc.username,
-            sessionId: hashStringEpoch(userDoc.username), //PK
+            username: userDoc.username,  //PK
+            sessionId: hashStringEpoch(userDoc.username),  //unique
             sessionStart: new Date().toISOString(),
             sessionStatus: "active",
         }, null);
@@ -66,11 +66,11 @@ export const login = async (username: string, password: string) => {
         const body = {
             success: true,
             message: 'Login successful',
-            token,
+            // token,
             expiresIn: 3600,
             sessionId: sessionCard.sessionId
         }
-        return { responseCode: 200, body };
+        return { responseCode: 200, body, token };
     } else {
         return { responseCode: 401, body: { error: 'Incorrect password' }};
     }

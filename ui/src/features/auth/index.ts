@@ -19,12 +19,11 @@ const encryptString = async (string: string) => {
   // Convert the public key to a CryptoKey
   const publicKey = await importPublicKey(publicKeyPem);
 
-  // Encrypt the symmetric key with the public key
+  // Encrypt string with the public key
   const encryptedString = await encryptStringWithPublicKey(publicKey, string);
   const encryptedStringBase64 = btoa(String.fromCharCode(...new Uint8Array(encryptedString)));
 
   return encryptedStringBase64;
-  // return {encryptedSymmetricKeyBase64, encryptedPasswordBase64, ivBase64};
 }
 
 const doLogin = async (data: {
@@ -32,7 +31,7 @@ const doLogin = async (data: {
   password: string;
 }) => {
   const encryptedStringBase64 = await encryptString(data.password);
-      // data.password = encryptString(data.password);
+
   const response = await fetch("http://localhost:5000/login", {
     method: "POST",
     body: JSON.stringify({
@@ -51,17 +50,7 @@ export const login = createAsyncThunk('login',
   async ( data: any, thunkApi) => {
     let response = await doLogin(data);
     if (response.success) {
-      const jwtToken = response.token;
-      /* Consider that when testing on localhost it may throw an error like
-        Cookie “jwtToken” has been rejected because there is already an HTTP-Only cookie but script tried to store a new one.
-      */
-      // document.cookie = `jwtToken=${jwtToken}; HttpOnly; SameSite=Strict;`;
-      document.cookie = `jwtToken=${jwtToken}; SameSite=Strict;`;
-
-      return {
-        ...response,
-        token: nanoid(), // :)
-      };
+      return response;
     } else {
       return thunkApi.rejectWithValue(response);
     }
@@ -69,9 +58,9 @@ export const login = createAsyncThunk('login',
 );
 
 export const logout = createAsyncThunk('logout', 
-    async ( data: any, thunkApi) => {
-      // TODO
-    }
+  async ( data: any, thunkApi) => {
+    // TODO
+  }
 );
 
 const auth = createReducer(initialState, builder => { builder
