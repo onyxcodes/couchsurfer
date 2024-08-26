@@ -20,7 +20,7 @@ export type ClassModel = Document & {
 }
 class Class {
     space?: Surfer | null;
-    name: string;
+    private name: string;
     type: string;
     title: string;
     attributes: Attribute[];
@@ -29,7 +29,8 @@ class Class {
     parentClass: Class | null;
     model: ClassModel;
 
-    // TODO: reorder type and title
+
+    /*
     constructor(
         space: Surfer | null = null,
         name: string,
@@ -49,7 +50,7 @@ class Class {
         }
 
         if (parentClass) this.inheritAttributes(parentClass);
-    }
+    } */
 
     getPrimaryKeys() {
         return this.attributes.filter( attr => attr.isPrimaryKey() )
@@ -63,23 +64,69 @@ class Class {
         }
     }
 
+    /*
     static async build( classObj: Class ) {
         let space = classObj.getSpace();
         if ( space ) {
             // if (parentClassName) this.setParentClass(parentClassName);
             let classModel = await space.addClass(classObj);
             classObj.setModel(classModel)
+            logger.info("build - classModel", {classModel: classModel})
+            classObj.setId(classModel._id);
             return classObj;
         } else {
             throw new Error("Missing db configuration");
         }
+    } */
 
+    private async build(): Promise<Class> {
+        return new Promise(async (resolve, reject) => {
+            let space = this.getSpace();
+            if ( space ) {
+                // if (parentClassName) this.setParentClass(parentClassName);
+                let classModel = await space.addClass(this);
+                this.setModel(classModel)
+                logger.info("build - classModel", {classModel: classModel})
+                this.setId(classModel._id);
+                resolve(this);
+            } else {
+                reject("Missing db configuration");
+            }
+        })
+    }
+
+    private init(space: Surfer | null, name: string, type: string, title: string, parentClass: Class | null) {
+        this.name = name;
+        this.title = title;
+        this.type = type;
+        this.attributes = [];
+        this.space = null;
+        this.id = null;
+        this.schema = [];
+        this.parentClass = parentClass;
+        if (space) {
+            this.space = space;
+        }
+        if (parentClass) this.inheritAttributes(parentClass);
+    }
+
+    public static async create(
+        space: Surfer,
+        name: string,
+        type: string = "class",
+        title = name,
+        parentClass: Class | null = null
+    ) {
+        const _class = new Class();
+        _class.init(space, name, type, title, parentClass);
+        await _class.build()
+        return _class;
     }
 
     static async buildFromModel(space: Surfer, classModel: ClassModel) {
         let parentClassModel = (classModel.parentClass ? await space.getClassModel(classModel.parentClass) : null);
         let parentClass = (parentClassModel ? await Class.buildFromModel(space, parentClassModel) : null);
-        let classObj: Class = new Class(space, classModel.name, classModel.type, classModel.type, parentClass);
+        let classObj: Class = await Class.create(space, classModel.name, classModel.type, classModel.type, parentClass);
         classObj.setModel(classModel);
         return classObj;
     }
@@ -93,16 +140,9 @@ class Class {
         }
     }
 
-    // static async fetch( space: Surfer, className: string ) {
-    //     let classModel = await space.getClassModel(className);
-    //     let classObj = new Class(space, classModel.name, classModel.type, classModel.description);
-    //     classObj.setModel(classModel);
-    //     return classObj;
-    // }
-
+    // TODO Turn into private method (after factory method instantiation refactory is done)
     setId( id: string ) {
-        if ( id ) this.id = id;
-        else throw Error("Missing id");
+        this.id = id;
     } 
 
     getName() {
@@ -209,7 +249,7 @@ class Class {
     async addReferenceAttribute( attribute: ReferenceAttribute ) {
         return this.addAttribute(attribute)
     }
-
+    /*
     async addAttribute(nameOrAttribute: string | Attribute, type?: AttributeType["type"]) {
         try {
             let attribute: Attribute;
@@ -234,10 +274,15 @@ class Class {
 
             let name = attribute.getName();
             if (!this.hasAttribute(name)) {
+                logger.info("addAttribute - adding attribute", {name: name, type: type})
                 this.attributes.push(attribute);
-                this.schema.push(attribute.getModel()); // sometimes getting schema undefined
+                let attributeModel = attribute.getModel();
+                logger.info("addAttribute - adding attribute to schema", {attributeModel: attributeModel})
+                this.schema.push(attributeModel); // sometimes getting schema undefined
                 // update class on db
+                logger.info("addAttribute - checking for requirements before updating class on db", {space: (this.space != null), id: this.id})
                 if (this.space && this.id) {
+                    logger.info("addAttribute - updating class on db")
                     await this.space.updateClass(this);
                     // TODO: Check if this class has subclasses
                     // if ( this.class ) 
@@ -247,18 +292,70 @@ class Class {
         } catch (e) {
             logger.info("Falied adding attribute because: ", e)
         }
+    } */
+
+    async addAttribute(nameOrAttribute: string | Attribute, type?: AttributeType["type"]): Promise<Class> {
+        return new Promise(async (resolve, reject) => {
+            try {
+                let attribute: Attribute;
+                if (typeof nameOrAttribute === 'string' && type) {
+                    attribute = new Attribute(this, nameOrAttribute, type);
+                } /*
+                else if (nameOrAttribute instanceof ReferenceAttribute) {
+                    let _attribute = nameOrAttribute as ReferenceAttribute;
+                    // check if the target domain exists
+                    let targetDomain = _attribute.domain;
+                    if (this.space && (await this.space.getDomain(targetDomain)) != null) {
+                        attribute = _attribute;
+                    } else if (!this.space) {
+                        reject("Missing db configuration");
+                    } else {
+                        reject("Target domain not found: " + targetDomain);
+                    }
+                } */
+                else if (nameOrAttribute instanceof Attribute) {
+                    attribute = nameOrAttribute;
+                } else {
+                    reject('Invalid arguments');
+                }
+    
+                let name = attribute.getName();
+                if (!this.hasAttribute(name)) {
+                    logger.info("addAttribute - adding attribute", {name: name, type: type})
+                    this.attributes.push(attribute);
+                    let attributeModel = attribute.getModel();
+                    logger.info("addAttribute - adding attribute to schema", {attributeModel: attributeModel})
+                    this.schema.push(attributeModel); // sometimes getting schema undefined
+                    // update class on db
+                    logger.info("addAttribute - checking for requirements before updating class on db", {space: (this.space != null), id: this.id})
+                    if (this.space && this.id) {
+                        logger.info("addAttribute - updating class on db")
+                        let res = await this.space.updateClass(this);
+                        resolve(this)
+                        // TODO: Check if this class has subclasses
+                        // if ( this.class ) 
+                    } else {
+                        logger.info("addAttribute - class not updated on db because of missing space or id")
+                        resolve(this)
+                    }
+                } else reject("Attribute with name " + name + " already exists within this Class")
+            } catch (e) {
+                logger.info("Falied adding attribute because: ", e)
+                reject(e)
+            }
+        });
     }
 
     // TODO: modify to pass also the current class model
     // consider first fetching/updating the local class model
     async addCard(params: {[key:string]: any}) {
-        return await this.space.createDoc(null, this, params);
+        return await this.space.createDoc(null, this.getName(), this, params);
     }
 
     async addOrUpdateCard(params: {[key:string]: any}, cardId: string) {
         if (cardId) return this.updateCard(cardId, params);
 
-        // attempt to retreive card by primary key
+        // attempt to retrieve card by primary key
         let filter = {}
         this.getPrimaryKeys().reduce(
             (accumulator, currentValue) => accumulator[currentValue] = params[currentValue],
@@ -273,7 +370,7 @@ class Class {
     }
 
     async updateCard(cardId: string, params: {[key:string]: any}) {
-        return await this.space.createDoc(cardId, this, params);
+        return await this.space.createDoc(cardId, this.getName(), this, params);
     }
 
     async getCards(selector, fields, skip, limit) {

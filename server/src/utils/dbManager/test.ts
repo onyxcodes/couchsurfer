@@ -1,25 +1,30 @@
 import { encryptString } from "../crypto";
 import Attribute from "./Attribute";
 import Class from "./Class";
-import Domain from "./Domain";
+// import Domain from "./Domain";
 import Surfer from "./Surfer";
 
 const testDataModel = async () => {
     console.log("Starting")
     // Surfer.clear("db-test")
     // return;
-    let testSurfer = await Surfer.create("db-test", {adapter: 'memory', plugins: [
-    ]});
-    var TestClass = new Class(testSurfer, "TestClass", "class", "A test");
+    let testSurfer = await Surfer.create("db-test", {plugins: []});
+    console.log("testDataModel -  built surfer instance. Name: ", testSurfer.db.name)
+    var TestClass = await Class.create(testSurfer, "TestClass", "class", "A test");
+    console.log("testDataModel -  Create class. Got model", TestClass.getModel())
     // Create attribute and adds it to above class
     var TestAttribute = new Attribute(TestClass, "TestAttribute", "string", { maxLength: 100 });
     
-    console.log("testDataModel -  built surfer instance")
-    TestClass = await Class.build(TestClass);
-    console.log("testDataModel -  commited class creation")
+    // TestClass = await Class.build(TestClass);
     // add attribute to TestClass
     console.log("testDataModel -  adding attribute to class")
-    await TestClass.addAttribute(TestAttribute);
+    let avar = await TestClass.addAttribute(TestAttribute);
+    console.log("TestClass.addAttribute result. Checking rev", avar.getModel().schema)
+    
+}
+
+/*
+const temp = async () => {
     console.log("testDataModel -  added attribute to class")
     // Should cause error since attribute with the same name was already added 
     // let TestAttributeWithClass;
@@ -57,10 +62,15 @@ const testDataModel = async () => {
     
     console.log({"User": JSON.stringify(UserClass.getModel(), null, 2)})
 
-    const encryptedPassword = encryptString("admin");
-    let userDocument = await testSurfer.createDoc(null, UserClass, {username: "admin", password: encryptedPassword, email: "admin@email.com", firstName: "FirstName", lastName: "LastName"});
+    try {
+        const encryptedPassword = encryptString("admin");
+        let userDocument = await testSurfer.createDoc(null, UserClass, {username: "admin", password: encryptedPassword, email: "admin@email.com", firstName: "FirstName", lastName: "LastName"});
 
-    console.log("userDocument was created", userDocument)
+        console.log("userDocument was created", userDocument)
+    } catch (e) {
+        console.log("Error", e);
+    }
+    
     let userDocs = await UserClass.getCards(null, null, 0, undefined);
 
     console.log("userDocs", userDocs)
@@ -81,10 +91,10 @@ const testDataModel = async () => {
     SessionStatusAttribute = await Attribute.build(SessionStatusAttribute);
     SessionEndAttribute = await Attribute.build(SessionEndAttribute);
     
+    // The model here looks cool. But there's an error when persisting the change to the db
     console.log({"UserSessionClass": JSON.stringify(UserSessionClass.getModel(), null, 2)})
-    
 }
-
+*/
 export default testDataModel;
 
 
