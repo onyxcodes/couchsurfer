@@ -118,6 +118,29 @@ app.post('/login', async (req, res) => {
     }
 });
 
+app.get('/api/private/reset', async (req, res) => {
+    try {
+        await (globalThis.surfer as Surfer).reset();
+        return res.status(200).json({ success: true, message: 'Internal database reset' });
+    } catch (e) {
+        return res.status(500).json({ success: false, error: 'An error occurred' });
+    }
+});
+
+app.get('/api/private/clear:conn', async (req, res) => {
+    try {
+        const conn = req.params.conn;
+        if (!conn) {
+            throw new Error("Connection name not provided");
+        }
+        await Surfer.clear(conn);
+        return res.status(200).json({ success: true, message: 'Internal database cleared' });
+    } catch (e) {
+        logger.error("Error during database clear", e);
+        return res.status(500).json({ success: false, error: 'An error occurred' });
+    }
+});
+
 app.get('/api/private/test', (req, res) => {
     return res.status(200).json({ message: 'Hello from the server! This is a private route' });
 });

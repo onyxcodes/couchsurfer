@@ -19,63 +19,27 @@ export type ClassModel = Document & {
     
 }
 class Class {
-    space?: Surfer | null;
+    private space?: Surfer | null;
     private name: string;
-    type: string;
-    title: string;
-    attributes: Attribute[];
-    schema: AttributeModel[]
-    id: string | null;
-    parentClass: Class | null;
-    model: ClassModel;
-
-
-    /*
-    constructor(
-        space: Surfer | null = null,
-        name: string,
-        type: string = "class",
-        title = name,
-        parentClass: Class | null = null
-    ) {
-        this.name = name,
-            this.title = title,
-            this.type = type,
-            this.attributes = [],
-            this.space = null,
-            this.id = null, this.schema = [] // in attempt to fix some undefined schema err
-            this.parentClass = parentClass;
-        if ( space ) {
-            this.space = space;
-        }
-
-        if (parentClass) this.inheritAttributes(parentClass);
-    } */
+    private type: string;
+    private description: string;
+    private attributes: Attribute[];
+    private schema: AttributeModel[]
+    private id: string | null;
+    // private parentClass: Class | null;
+    private model: ClassModel;
 
     getPrimaryKeys() {
         return this.attributes.filter( attr => attr.isPrimaryKey() )
             .map( attr => attr.getName() );
     }
 
+    // TODO: Test
+    /*
     inheritAttributes( parentClass: Class ) {
         let parentAttributes = parentClass.getAttributes();
         for ( let attribute of parentAttributes ) {
             this.addAttribute(attribute);
-        }
-    }
-
-    /*
-    static async build( classObj: Class ) {
-        let space = classObj.getSpace();
-        if ( space ) {
-            // if (parentClassName) this.setParentClass(parentClassName);
-            let classModel = await space.addClass(classObj);
-            classObj.setModel(classModel)
-            logger.info("build - classModel", {classModel: classModel})
-            classObj.setId(classModel._id);
-            return classObj;
-        } else {
-            throw new Error("Missing db configuration");
         }
     } */
 
@@ -95,38 +59,45 @@ class Class {
         })
     }
 
-    private init(space: Surfer | null, name: string, type: string, title: string, parentClass: Class | null) {
+    private init(
+        space: Surfer | null,
+        name: string,
+        type: string,
+        description: string,
+        // parentClass: Class | null
+    ) {
         this.name = name;
-        this.title = title;
+        this.description = description;
         this.type = type;
         this.attributes = [];
         this.space = null;
         this.id = null;
         this.schema = [];
-        this.parentClass = parentClass;
+        // this.parentClass = parentClass;
         if (space) {
             this.space = space;
         }
-        if (parentClass) this.inheritAttributes(parentClass);
+        // TODO: Waiting for test of method
+        // if (parentClass) this.inheritAttributes(parentClass);
     }
 
     public static async create(
         space: Surfer,
         name: string,
         type: string = "class",
-        title = name,
-        parentClass: Class | null = null
+        description: string,
+        // parentClass: Class | null = null
     ) {
         const _class = new Class();
-        _class.init(space, name, type, title, parentClass);
+        _class.init(space, name, type, description);
         await _class.build()
         return _class;
     }
 
     static async buildFromModel(space: Surfer, classModel: ClassModel) {
-        let parentClassModel = (classModel.parentClass ? await space.getClassModel(classModel.parentClass) : null);
-        let parentClass = (parentClassModel ? await Class.buildFromModel(space, parentClassModel) : null);
-        let classObj: Class = await Class.create(space, classModel.name, classModel.type, classModel.type, parentClass);
+        // let parentClassModel = (classModel.parentClass ? await space.getClassModel(classModel.parentClass) : null);
+        // let parentClass = (parentClassModel ? await Class.buildFromModel(space, parentClassModel) : null);
+        let classObj: Class = await Class.create(space, classModel.name, classModel.type, classModel.type);
         classObj.setModel(classModel);
         return classObj;
     }
@@ -136,7 +107,7 @@ class Class {
         if ( classModel ) {
             return Class.buildFromModel(space, classModel);
         } else {
-            throw new Error("Domain not found: "+className);
+            throw new Error("Class not found: "+className);
         }
     }
 
@@ -153,8 +124,8 @@ class Class {
         return this.space;
     }
 
-    getTitle() {
-        return this.title;
+    getDescription() {
+        return this.description;
     }
 
     getType() {
@@ -179,7 +150,7 @@ class Class {
         let model: ClassModel = {
             _id:this.getName(),
             name: this.getName(),
-            description: this.getTitle(),
+            description: this.getDescription(),
             type: this.getType(),
             schema: this.buildSchema(),
             _rev: this.model ? this.model._rev : undefined,
@@ -188,21 +159,27 @@ class Class {
         return model;
     }
 
-    setModel( model: ClassModel ) {
+    // Set model should be called only after fetching the latest model from db
+    private setModel( model: ClassModel ) {
         logger.info("setModel - got incoming model", {model: model})
         let currentModel = this.getModel();
         model = Object.assign(currentModel, model);
         this.schema = this.schema || []
         model.schema = [ ...model.schema, ...(this.schema)]
         // let _model = Object.assign(currentModel, {...model, schema: this.schema});
-        logger.info("setModel - model after processing",{ model: model})
         this.attributes = []
         for (let attribute of model.schema) {
-            this.addAttribute(attribute.name, attribute.type);
+            let _attribute = new Attribute(
+                this, attribute.name, attribute.type, attribute.config
+            );
+            this.attributes.push(_attribute);
         }
-        this.model = {...this.model, ...model};
+        //     this.addAttribute(attribute.name, attribute.type);
+        // }
+        // this.model = {...this.model, ...model};
         this.name = model.name;
-        this.title = model.description;
+        this.description = model.description;
+        logger.info("setModel - model after processing",{ model: model})
     }
 
     getAttributes( ...names: string[] ) {
@@ -246,9 +223,10 @@ class Class {
         return this.hasAnyAttributes( name )
     }
 
+    /*
     async addReferenceAttribute( attribute: ReferenceAttribute ) {
         return this.addAttribute(attribute)
-    }
+    }*/
     /*
     async addAttribute(nameOrAttribute: string | Attribute, type?: AttributeType["type"]) {
         try {
@@ -294,13 +272,10 @@ class Class {
         }
     } */
 
-    async addAttribute(nameOrAttribute: string | Attribute, type?: AttributeType["type"]): Promise<Class> {
+    async addAttribute(attribute: Attribute): Promise<Class> {
         return new Promise(async (resolve, reject) => {
             try {
-                let attribute: Attribute;
-                if (typeof nameOrAttribute === 'string' && type) {
-                    attribute = new Attribute(this, nameOrAttribute, type);
-                } /*
+                /*
                 else if (nameOrAttribute instanceof ReferenceAttribute) {
                     let _attribute = nameOrAttribute as ReferenceAttribute;
                     // check if the target domain exists
@@ -313,15 +288,9 @@ class Class {
                         reject("Target domain not found: " + targetDomain);
                     }
                 } */
-                else if (nameOrAttribute instanceof Attribute) {
-                    attribute = nameOrAttribute;
-                } else {
-                    reject('Invalid arguments');
-                }
-    
                 let name = attribute.getName();
                 if (!this.hasAttribute(name)) {
-                    logger.info("addAttribute - adding attribute", {name: name, type: type})
+                    logger.info("addAttribute - adding attribute", {name: name, type: attribute.getModel()})
                     this.attributes.push(attribute);
                     let attributeModel = attribute.getModel();
                     logger.info("addAttribute - adding attribute to schema", {attributeModel: attributeModel})

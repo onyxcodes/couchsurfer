@@ -62,6 +62,8 @@ type SurferOptions = {
 class Surfer {
     private db: PouchDB.Database<{}> = undefined;
     private lastDocId: number;
+    private connection: string;
+    private options: SurferOptions;
     private static version: string = "0.0.1";
 
     // constructor(conn: string,  options?: SurferOptions) {
@@ -80,6 +82,9 @@ class Surfer {
     }
 
     private async initialize(conn: string, options?: SurferOptions) {
+        // Store the connection string and options
+        this.connection = conn;
+        this.options = options;
         let PouchDB: typeof import('pouchdb-core');
         let Find: typeof import('pouchdb-find');
 
@@ -152,44 +157,6 @@ class Surfer {
         return classObj;
     }
 
-    // async getDomain(domainName: string) {
-    //     let domainObj = await Domain.fetch(this, domainName);
-    //     return domainObj;
-    // }
-
-    // async setSystem() {
-    //     let dbInfo = await this.db.info();
-    //     logger.info("setSystem - db info", dbInfo)
-    //     let systemClass: Class;
-    //     try {
-    //         systemClass = await this.getClass("System");
-    //     } catch (e) {
-    //         // system class does not exist
-    //         // create it from base data model
-    //         systemClass = await this.getClass("System"); // TEMP
-    //     }
-    //     let currentSystem = await systemClass.getCards({
-    //         db_name: dbInfo.db_name,
-    //         backend_adapter: dbInfo.backend_adapter,
-    //     }, null, null, null);
-    //     if (currentSystem.length == 0) {
-    //         let systemDoc = {
-    //             db_name: dbInfo.db_name,
-    //             backend_adapter: dbInfo.backend_adapter,
-    //             doc_count: dbInfo.doc_count,
-    //             update_seq: dbInfo.update_seq,
-    //             version: Surfer.version,
-    //             patch: null
-    //         }
-    //         await systemClass.addCard(systemDoc);
-    //     } else {
-    //         let systemDoc = {
-    //             doc_count: dbInfo.doc_count,
-    //             update_seq: dbInfo.update_seq,
-    //         }
-    //         await systemClass.updateCard(currentSystem[0]._id, systemDoc);
-    //     }
-    // }
     async initIndex () {
         try {
             let lastDocId: number = await this.getLastDocId();
@@ -212,11 +179,10 @@ class Surfer {
         }
     }
 
-    static async build( that: Surfer ) {
-        let result = await that.initdb();
-        // dbManagerObj = await dbManagerObj.incrementLastDocId();
-        return result;
-    }
+    // static async build( that: Surfer ) {
+    //     let result = await that.initdb();
+    //     return result;
+    // }
 
     // TODO: Consider filtering returned properties
     async getDocument(docId: string) {
@@ -233,7 +199,8 @@ class Surfer {
         }
         return doc;
     }
-    async getDocRevision(docId) {
+
+    async getDocRevision(docId: string) {
         let _rev: string | null = null;
         try {
             let doc = await this.getDocument(docId);
@@ -317,9 +284,8 @@ class Surfer {
 
     async getAllClassModels() {
         let selector = {
-            type: { $eq: "class" },
+            type: { $eq: "class" }
         };
-        // TODO: parentClass may be interesting
         let fields = ['_id', 'name', 'description'];
 
         let response = await this.findDocuments(selector, fields);
@@ -329,6 +295,11 @@ class Surfer {
 
     async getClassModels( classNames: string[] ) {
         let allClasses = await this.getAllClassModels();
+        // TODO: Consider directly querying while applying the filter
+        // let selector = {
+        //     type: { $eq: "class" },
+        //     $or: [ _id: { $eq: className}]
+        // };
         let result = allClasses.filter( classObj => classNames.includes(classObj.name) );
         return result;
     }
@@ -344,6 +315,36 @@ class Surfer {
         return this.lastDocId;
     }
 
+    // The idea of this method is to be called from within the server (like CLI command)
+    // 
+    async reset() {
+        await this.destroyDb();
+        // wait a few seconds
+        await new Promise((resolve) => setTimeout(resolve, 2000));
+        await this.initialize(
+            this.connection, this.options
+        );
+        await this.initdb()
+        return this;
+    }
+
+    async destroyDb() {
+        return new Promise ( (resolve, reject) => {
+            try {
+                this.db.destroy(null, () => {
+                    logger.info("reset - Destroyed db");
+                    resolve(true);
+                });
+            } catch (e) {
+                logger.error("reset - Error while destroying db"+e)
+                reject(false)
+            }
+        })
+    }
+
+    // This method is similar to destroyDb, but intended to be called from the client (not to destroy the main db)
+    // TODO: Right now this allows to clear any db
+    // there should be more restrictions
     static async clear (conn: string) {
         return new Promise ( (resolve, reject) => {
             try {
