@@ -54,7 +54,7 @@ export const login = async (username: string, password: string) => {
             sessionId: hashStringEpoch(userDoc.username),  //unique
             sessionStart: new Date().toISOString(),
             sessionStatus: "active",
-        }, null);
+        });
         // Generate JWT token
         const token = generateToken({
             username: userDoc.username,

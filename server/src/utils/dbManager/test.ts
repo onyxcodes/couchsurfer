@@ -21,31 +21,17 @@ const testDataModel = async () => {
     let avar = await TestClass.addAttribute(TestAttribute);
     console.log("TestClass.addAttribute result. Checking rev", avar.getModel().schema)
     
-}
-
-/*
-const temp = async () => {
-    console.log("testDataModel -  added attribute to class")
-    // Should cause error since attribute with the same name was already added 
-    // let TestAttributeWithClass;
-    // try {
-    //   TestAttributeWithClass = new Attribute("TestAttribute", "string", { maxLength: 100 }, TestClass);
-    // } catch (e) {
-    //   console.log("Error", e);
-    // }
-    // Should auto add attribute to above class
-    console.log("testDataModel -  adding attribute to class")
     let TestAnotherAttrWithClass = new Attribute(TestClass, "TestAnotherAttrWithClass", "string", { maxLength: 100, isArray: true });
     TestAnotherAttrWithClass = await Attribute.build(TestAnotherAttrWithClass);
-    console.log("result", {result: TestClass.getModel()})
-    let aDocument = await testSurfer.createDoc(null, TestClass, {TestAttribute: "TestValue", TestAnotherAttrWithClass: ["TestValue1", "TestValue2"]});
+    
+    let aDocument = await TestClass.addCard({TestAttribute: "TestValue", TestAnotherAttrWithClass: ["TestValue1", "TestValue2"]});
+    // let aDocument = await testSurfer.createDoc(null, "TestClass", TestClass, {TestAttribute: "TestValue", TestAnotherAttrWithClass: ["TestValue1", "TestValue2"]});
     console.log("aDocument was created", aDocument)
-    let testclassDocs = await TestClass.getCards(null, null, 0, undefined);
-    // console.log("allDocs of class TestClass", allDocs)
-    // let allDocs = await 
 
-    var UserClass = new Class(testSurfer, "User", "class", "A user class for secure login");
-    UserClass = await Class.build(UserClass);
+    let testclassDocs = await TestClass.getCards(null, null, 0, undefined);
+    console.log("allDocs of class TestClass", testclassDocs)
+
+    var UserClass = await Class.create(testSurfer, "User", "class", "A user class for secure login");
 
     // Create attributes and add them to the User class
     var UsernameAttribute = new Attribute(UserClass, "username", "string", { maxLength: 50, primaryKey: true, mandatory: true });
@@ -62,21 +48,27 @@ const temp = async () => {
     
     console.log({"User": JSON.stringify(UserClass.getModel(), null, 2)})
 
+    // reinstantiate UserClass from db
+    UserClass = await testSurfer.getClass("User");
+    console.log({"User (from db)": JSON.stringify(UserClass.getModel(), null, 2)})
+
     try {
         const encryptedPassword = encryptString("admin");
-        let userDocument = await testSurfer.createDoc(null, UserClass, {username: "admin", password: encryptedPassword, email: "admin@email.com", firstName: "FirstName", lastName: "LastName"});
+        let userDocument = await UserClass.addCard({
+            username: "admin", password: encryptedPassword, 
+            email: "admin@email.com", firstName: "FirstName", lastName: "LastName"
+        });
 
         console.log("userDocument was created", userDocument)
     } catch (e) {
         console.log("Error", e);
     }
-    
+
     let userDocs = await UserClass.getCards(null, null, 0, undefined);
 
     console.log("userDocs", userDocs)
 
-    var UserSessionClass = new Class(testSurfer, "UserSession", "class", "Tracks user sessions");
-    UserSessionClass = await Class.build(UserSessionClass);
+    var UserSessionClass = await Class.create(testSurfer, "UserSession", "class", "Tracks user sessions");
 
     // Create attributes and add them to the User class
     var SUsernameAttribute = new Attribute(UserSessionClass, "username", "string", { maxLength: 50, primaryKey: true, mandatory: true });
@@ -93,8 +85,11 @@ const temp = async () => {
     
     // The model here looks cool. But there's an error when persisting the change to the db
     console.log({"UserSessionClass": JSON.stringify(UserSessionClass.getModel(), null, 2)})
+    // reinstantiate UserClass from db
+    UserSessionClass = await testSurfer.getClass("UserSession");
+    console.log({"UserSessionClass (from db)": JSON.stringify(UserSessionClass.getModel(), null, 2)})
 }
-*/
+
 export default testDataModel;
 
 

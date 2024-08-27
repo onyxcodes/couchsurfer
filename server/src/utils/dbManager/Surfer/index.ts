@@ -1,5 +1,4 @@
 import NodePouchDB from "pouchdb-node";
-import Find from 'pouchdb-find'
 import getLogger from "../../../utils/logger/";
 import Class, { ClassModel } from "../Class";
 // import Domain, { DomainModel } from "../Domain";

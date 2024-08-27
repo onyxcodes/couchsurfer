@@ -321,7 +321,7 @@ class Class {
         return await this.space.createDoc(null, this.getName(), this, params);
     }
 
-    async addOrUpdateCard(params: {[key:string]: any}, cardId: string) {
+    async addOrUpdateCard(params: {[key:string]: any}, cardId?: string) {
         if (cardId) return this.updateCard(cardId, params);
 
         // attempt to retrieve card by primary key
