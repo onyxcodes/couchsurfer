@@ -2,9 +2,12 @@ import NodePouchDB from "pouchdb-node";
 import getLogger from "../../../utils/logger/";
 import Class, { ClassModel } from "../Class";
 // import Domain, { DomainModel } from "../Domain";
-import { AttributeModel, AttributeTypeDecimal, AttributeTypeForeignKey, AttributeTypeInteger, AttributeTypeString } from "../Attribute";
-import { config } from "winston";
-import ReferenceAttribute, { AttributeTypeReference } from "../Reference";
+import { AttributeModel, AttributeTypeDecimal, 
+    AttributeTypeForeignKey, 
+    AttributeTypeInteger,
+    AttributeTypeString
+} from "../Attribute";
+// import ReferenceAttribute, { AttributeTypeReference } from "../Reference";
 import { decryptString } from "../../../utils/crypto";
 
 const logger = getLogger().child({module: "Surfer"})
@@ -63,7 +66,7 @@ class Surfer {
     private lastDocId: number;
     private connection: string;
     private options: SurferOptions;
-    private static version: string = "0.0.1";
+    private static appVersion: string = "0.0.1";
 
     // constructor(conn: string,  options?: SurferOptions) {
     //     // load default plugins
@@ -138,16 +141,94 @@ class Surfer {
         return lastDocId;
     }
 
+    async getSystem() {
+        try {
+            let doc = await this.db.get("_system");
+        } catch (e) {
+            if (e.name === 'not_found') {
+                logger.info("get System - not found", e)
+                return null;
+            }
+            logger.error("getSystem - something went wrong", {"error": e});
+            throw new Error(e);
+        }
+    }
+
+    // TODO Use specific types for the array type. i.e. Patch[]
+    private async loadPatches(): Promise<{}[]> {
+        // [TODO] Load patches from files located in utils/dbManager/patches
+        // and return their content in an ordered array
+        try {
+            // const patches = await import('./patches');
+            // return patches;
+            logger.info("loadPatches - Successfully loaded patches");
+            return []
+        } catch (e) {
+            logger.error("loadPatches - something went wrong", e)
+            throw new Error(e);
+        }
+    }
+
+    private async applyPatch(patch: {}): Promise<string> {
+        try {
+            await this.db.bulkDocs(patch.docs);
+            logger.info("applyPatch - Successfully applied patch", patch.version);
+            return patch.version;
+        } catch (e) {
+            logger.error("applyPatch - something went wrong", e)
+            throw new Error(e);
+        }
+    }
+
+    private async applyPatches(schemaVersion: string): Promise<string> {
+        let _schemaVersion = schemaVersion;
+        try {
+            const allPatches = await this.loadPatches();
+            const startingIndex = allPatches.findIndex(patch => patch.version === schemaVersion);
+            if (startingIndex === -1 || startingIndex === allPatches.length - 1) {
+                logger.info("applyPatches - No patches to apply");
+                return schemaVersion;
+            }
+            let patches = allPatches.slice(startingIndex + 1);
+            for (let patch of patches) {
+                _schemaVersion = await this.applyPatch(patch);
+            }
+            logger.info("applyPatches - Successfully applied patches till version", _schemaVersion);
+        } catch (e) {
+            logger.error("applyPatches - something went wrong", e)
+        }
+        return _schemaVersion;
+    }
+
+    async checkSystem() {
+        let systemDoc = await this.getSystem();
+        if (systemDoc == null) {
+            const dbInfo = await this.getDbInfo();
+            let _systemDoc = {
+                _id: "_system",
+                appVersion: Surfer.appVersion,
+                dbInfo: dbInfo,
+                schemaVersion: undefined
+            }
+            // schemaVersion will be added after applying patches
+            let schemaVersion = await this.applyPatches(_systemDoc.schemaVersion);
+            _systemDoc.schemaVersion = schemaVersion;
+            await this.db.put(_systemDoc);
+        } else {
+            logger.info("checkSystem - system doc already exists", systemDoc)
+            // apply patches if needed
+            let schemaVersion = await this.applyPatches(systemDoc.schemaVersion);
+            systemDoc.schemaVersion = schemaVersion;
+            // TODO: Update system doc
+        }
+    }
 
     // Database initialization should be about making sure that all the documents
     // representing the base data model for this framework are present
     // perform tasks like applying patches, creating indexes, etc.
     async initdb () {
-        this.db.info().then((info) => {
-            logger.info("initdb - db info", info.backend_adapter, info.doc_count, info.update_seq);
-        });
         await this.initIndex();
-        // [TODO] apply patches
+        await this.checkSystem();
         return this;
     }
 
@@ -174,6 +255,7 @@ class Surfer {
             }
             this.lastDocId = Number(lastDocId);
         } catch (e) {
+            logger.error("initdb -  something went wrong", e)
             throw new Error("initdb -  something went wrong"+e);
         }
     }
