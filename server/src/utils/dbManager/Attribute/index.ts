@@ -48,7 +48,7 @@ class Attribute {
     model: AttributeModel;
     class: Class;
     defaultValue?: any;
-
+    
     constructor(classObj: Class = null, name: string, type: AttributeType["type"], config?: AttributeType["config"] ) {
         this.name = name;
         this.setModel({
@@ -61,6 +61,17 @@ class Attribute {
             // attempt to add attribute
             this.class = classObj;
         }
+    }
+
+    public static async create(
+        classObj: Class = null,
+        name: string,
+        type: AttributeType["type"],
+        config?: AttributeType["config"] 
+    ) {
+        const attribute = new Attribute(classObj, name, type, config);
+        await Attribute.build(attribute)
+        return attribute;
     }
 
     isPrimaryKey() {

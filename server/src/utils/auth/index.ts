@@ -1,18 +1,23 @@
-import { decryptString, hashStringEpoch } from "../crypto";
+import { decryptString, encryptString, hashStringEpoch } from "../crypto";
 import Surfer, {Document} from '../dbManager/Surfer';
 import jwt from 'jsonwebtoken';
 import dotenv from 'dotenv';
+import Class from "../dbManager/Class";
+import getLogger from "../logger";
+
+const logger = getLogger().child({module: "auth"})
 
 const envPath = '.env';
 
 dotenv.config({ path: envPath });
 
-export const generateToken = (payload: {
+export interface JWTAuthPayload {
     username: string;
     id: string;
     email: string;
     sessionId: string;
-}) => {
+}
+export const generateToken = (payload: JWTAuthPayload) => {
     const secretKey = process.env.JWT_PRIVATE_KEY;
 
     if (!secretKey || secretKey === '') {
@@ -73,5 +78,44 @@ export const login = async (username: string, password: string) => {
         return { responseCode: 200, body, token };
     } else {
         return { responseCode: 401, body: { error: 'Incorrect password' }};
+    }
+}
+
+// Setups admin user using environment values
+export const setupAdminUser = async () => {
+    const adminUsername = process.env.ADMIN_USERNAME;
+    const adminPassword = process.env.ADMIN_PASSWORD;
+
+    if (!adminUsername || adminUsername === '') {
+        throw new Error("Can't configure admin user because of missing username");
+    }
+
+    if (!adminPassword || adminPassword === '') {
+        throw new Error("Can't configure admin user because of missing password");
+    }
+
+    const UserClass = globalThis.UserClass as Class;
+    // check if the admin user already exists
+    // we consider as admin user the one that has the same username as in the env configs
+    const userAdminCards = await UserClass.getCards({
+        username: {$eq: adminUsername}
+    }, null, 0, 1);
+    const adminUser = userAdminCards.length ? userAdminCards[0] : undefined;
+    if (!adminUser) {
+        logger.info(`setupAdminUser - Missing admin user "${adminUsername}". Setting up...`)
+        try {
+            const encryptedPassword = encryptString(adminPassword);
+            let userDocument = await UserClass.addCard({
+                username: adminUsername, password: encryptedPassword, 
+                email: "admin@email.com", firstName: "FirstName", lastName: "LastName"
+            });
+            logger.info("setupAdminUser - Admin user just got setup successfully", 
+                {username: userDocument.username})
+        } catch (e) {
+            logger.error("setupAdminUser - error", {error: e})
+            throw new Error(e)
+        }
+    } else {
+        logger.info("setupAdminUser - Admin user already setup");
     }
 }

@@ -34,6 +34,10 @@ class Class {
             .map( attr => attr.getName() );
     }
 
+    private constructor() {
+        // Private constructor to prevent direct instantiation
+    }
+
     // TODO: Test
     /*
     inheritAttributes( parentClass: Class ) {

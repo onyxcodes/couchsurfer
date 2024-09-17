@@ -19,6 +19,11 @@ export const hashStringEpoch = (string: string) => {
 }
 
 const generatePair = () => {
+    const passphrase = process.env.ENCRYPTION_PASSPHRASE;
+
+    if (passphrase === undefined) {
+        throw new Error("No passphrase found in .env file");
+    }
     // Placeholder method, aimed to provide in the future additional
     // customizations for the key pair generation
     const { publicKey, privateKey } = crypto.generateKeyPairSync("rsa", {
@@ -38,7 +43,8 @@ const generatePair = () => {
     return { publicKey, privateKey };
 }
 
-const updateEnvFile = (config: {
+// TODO: Consider moving to another dir
+export const updateEnvFile = (config: {
     [key: string]: string;
 }) => {
     const envFilePath = envPath;

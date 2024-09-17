@@ -38,7 +38,7 @@
     "start": "npm run build && npm run start:server",
     "start:server": "node ./server/lib/index.js",
     "develop:ui": "webpack serve --node-env=development --progress",
-    "develop:server": "ts-node ./server/src/index.ts",
+    "develop:server": "ts-node ./server/index.ts",
     "test": "jest --config jest.config.ts",
     "build:server": "tsc --project ./server/tsconfig.json",
     "build:ui": "webpack --node-env=production",
