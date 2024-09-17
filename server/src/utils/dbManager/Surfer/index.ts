@@ -50,11 +50,20 @@ const DOMAIN_SCHEMA: (AttributeModel | {name: "schema", type: "attribute", confi
     { name: "targetClass", type: "foreign_key", config: { isArray: true } },
     ...BASE_SCHEMA
 ]
-export type Document = PouchDB.Core.ExistingDocument<{}> & {
-    type: string,
-    createTimestamp: number,
-    updateTimestamp?: number | null,
+export type Document = PouchDB.Core.ExistingDocument<{
+    type: string;
+    createTimestamp: number;
+    updateTimestamp?: number | null;
     [key: string]: any
+}>
+
+// The idea is to make this patch object be processed
+// storing the version of the patch and the documents contained in it
+export interface Patch {
+    version: string;
+    docs: (PouchDB.Core.ExistingDocument<{
+        [key: string]: any
+    }> | PouchDB.Core.Document<{[key: string]: any}>)[]
 }
 
 type SurferOptions = {
@@ -143,7 +152,8 @@ class Surfer {
 
     async getSystem() {
         try {
-            let doc = await this.db.get("_system");
+            let doc = await this.db.get("~system") as any;
+            return doc;
         } catch (e) {
             if (e.name === 'not_found') {
                 logger.info("get System - not found", e)
@@ -155,24 +165,39 @@ class Surfer {
     }
 
     // TODO Use specific types for the array type. i.e. Patch[]
-    private async loadPatches(): Promise<{}[]> {
-        // [TODO] Load patches from files located in utils/dbManager/patches
-        // and return their content in an ordered array
+    private async loadPatches(): Promise<Patch[]> {
+        // [TODO] Load patches from files located in utils/dbManager/patch
         try {
-            // const patches = await import('./patches');
-            // return patches;
+            let patchCount = Number(process.env.PATCH_COUNT);
+            logger.info(`loadPatches - preparing to load ${patchCount} patches`)
+            let patches = await Promise.all(
+                Array.from({ length: patchCount }).map(
+                  (_, index) => {
+                    var _index = `${index}`.padStart(3, '0')
+                    var importFilePath = `../datamodel/patch/patch-${_index}.json`
+                    logger.info("loadPatches - loading patch from path", {path: importFilePath})
+                    return import(importFilePath, { with: { type: "json" }})
+                  },
+                ),
+            )
+            patches = patches.map( (patch) => {
+                logger.info("loadPatches - Parsing patch", {patch: patch.default})
+                return patch.default;
+            })
             logger.info("loadPatches - Successfully loaded patches");
-            return []
+            logger.info("loadPatches - patches", {patches})
+            return patches;
         } catch (e) {
             logger.error("loadPatches - something went wrong", e)
             throw new Error(e);
         }
     }
 
-    private async applyPatch(patch: {}): Promise<string> {
+    private async applyPatch(patch: Patch): Promise<string> {
         try {
+            logger.info("applyPatch - attempting to apply patch", {patch})
             await this.db.bulkDocs(patch.docs);
-            logger.info("applyPatch - Successfully applied patch", patch.version);
+            logger.info("applyPatch - Successfully applied patch", {version: patch.version});
             return patch.version;
         } catch (e) {
             logger.error("applyPatch - something went wrong", e)
@@ -180,32 +205,40 @@ class Surfer {
         }
     }
 
-    private async applyPatches(schemaVersion: string): Promise<string> {
+    private async applyPatches(schemaVersion: string | undefined): Promise<string> {
         let _schemaVersion = schemaVersion;
         try {
             const allPatches = await this.loadPatches();
-            const startingIndex = allPatches.findIndex(patch => patch.version === schemaVersion);
-            if (startingIndex === -1 || startingIndex === allPatches.length - 1) {
+            // When schemaVersion is undefined uses index 0
+            const startingIndex = schemaVersion ? allPatches.findIndex(patch => patch.version === schemaVersion)
+                : 0;
+            logger.info(`applyPatches - Starting to apply patches from index ${startingIndex}`)
+            if (startingIndex === -1 || startingIndex === allPatches.length) {
                 logger.info("applyPatches - No patches to apply");
                 return schemaVersion;
             }
-            let patches = allPatches.slice(startingIndex + 1);
+            let patches = allPatches.slice(startingIndex);
             for (let patch of patches) {
                 _schemaVersion = await this.applyPatch(patch);
             }
-            logger.info("applyPatches - Successfully applied patches till version", _schemaVersion);
+            logger.info("applyPatches - Successfully applied patches till version", {version: _schemaVersion});
         } catch (e) {
             logger.error("applyPatches - something went wrong", e)
         }
         return _schemaVersion;
     }
 
+    // Method that verifies wether the system information are updated
+    // applies patches too
+    // TODO: Test if works corrrectly with multiple patch files
     async checkSystem() {
         let systemDoc = await this.getSystem();
-        if (systemDoc == null) {
-            const dbInfo = await this.getDbInfo();
-            let _systemDoc = {
-                _id: "_system",
+        let _systemDoc;
+        const dbInfo = await this.getDbInfo();
+        logger.info("checkSystem - current system doc", {system: systemDoc})
+        if (!systemDoc) {
+            _systemDoc = {
+                _id: "~system",
                 appVersion: Surfer.appVersion,
                 dbInfo: dbInfo,
                 schemaVersion: undefined
@@ -213,14 +246,19 @@ class Surfer {
             // schemaVersion will be added after applying patches
             let schemaVersion = await this.applyPatches(_systemDoc.schemaVersion);
             _systemDoc.schemaVersion = schemaVersion;
-            await this.db.put(_systemDoc);
         } else {
-            logger.info("checkSystem - system doc already exists", systemDoc)
+            logger.info("checkSystem - system doc already exists. Checking for updates", systemDoc)
             // apply patches if needed
             let schemaVersion = await this.applyPatches(systemDoc.schemaVersion);
-            systemDoc.schemaVersion = schemaVersion;
-            // TODO: Update system doc
+            _systemDoc = { ...systemDoc,
+                appVersion: Surfer.appVersion,
+                dbInfo: dbInfo,
+                schemaVersion: schemaVersion
+            }
         }
+        // Update systemDoc
+        await this.db.put(_systemDoc);
+        logger.info("checkSystem - updated system", {system: _systemDoc})
     }
 
     // Database initialization should be about making sure that all the documents
