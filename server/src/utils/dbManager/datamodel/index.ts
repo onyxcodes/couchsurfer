@@ -7,6 +7,8 @@ import path from 'node:path';
 const envPath = '.env';
 dotenv.config({ path: envPath }); 
 
+// TODO: Consider an alternative for when running in the browser
+// like ftp
 export const countPatches = () => {
     try {
         const folderPath = path.resolve(__dirname, 'patch')
@@ -15,6 +17,20 @@ export const countPatches = () => {
     } catch(e) {
         console.log("countPatches - problem while reading patch folder", e)
     }
+}
+
+export const importJsonFile = async (importFilePath: string) => {
+  try {
+    let _path = path.resolve(__dirname, importFilePath)
+    console.log("importJsonFile - importing from directory", _path)
+    const data = await fs.promises.readFile(_path, 'utf8');
+    const dataObj = JSON.parse(data);
+    // console.log("importJsonFile - imported file content", dataObj)
+    return dataObj;
+  } catch (error) {
+    console.error('Error reading JSON file:', error);
+    throw error;
+  }
 }
 
 export const setPatchCount = () => {

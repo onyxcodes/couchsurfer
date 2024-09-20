@@ -11,9 +11,9 @@ import { login, JWTAuthPayload, setupAdminUser } from './utils/auth';
 // import memoryAdapter from "pouchdb-adapter-memory"
 import cookieParser from 'cookie-parser';
 import jwt from 'jsonwebtoken';
-import Class from 'utils/dbManager/Class';
+import Class from './utils/dbManager/Class';
 import { setPatchCount } from './utils/dbManager/datamodel';
-import Attribute from 'utils/dbManager/Attribute';
+import Attribute from './utils/dbManager/Attribute';
 
 const couchsurfer = () => {
     const logger = getLogger().child({module: "express"})
@@ -216,4 +216,5 @@ const couchsurfer = () => {
     return app;
 }
 
-export default couchsurfer;
+export { Surfer, Class, Attribute, getLogger }
+export {couchsurfer};

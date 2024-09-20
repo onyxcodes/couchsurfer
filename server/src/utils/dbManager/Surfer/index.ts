@@ -9,6 +9,7 @@ import { AttributeModel, AttributeTypeDecimal,
 } from "../Attribute";
 // import ReferenceAttribute, { AttributeTypeReference } from "../Reference";
 import { decryptString } from "../../../utils/crypto";
+import { importJsonFile } from "../datamodel";
 
 const logger = getLogger().child({module: "Surfer"})
 
@@ -164,8 +165,11 @@ class Surfer {
         }
     }
 
-    // TODO Use specific types for the array type. i.e. Patch[]
+    // TODO Parametrize the URL in a way that during the build procedure
+    // it get substituted with the correct path for the build configuration
     private async loadPatches(): Promise<Patch[]> {
+        let __patchDir = "../datamodel/patch"
+        if (process.env.BUILDING) __patchDir = "patch"
         // [TODO] Load patches from files located in utils/dbManager/patch
         try {
             let patchCount = Number(process.env.PATCH_COUNT);
@@ -174,15 +178,16 @@ class Surfer {
                 Array.from({ length: patchCount }).map(
                   (_, index) => {
                     var _index = `${index}`.padStart(3, '0')
-                    var importFilePath = `../datamodel/patch/patch-${_index}.json`
+                    var importFilePath = `${__patchDir}/patch-${_index}.json`
                     logger.info("loadPatches - loading patch from path", {path: importFilePath})
-                    return import(importFilePath, { with: { type: "json" }})
+                    return importJsonFile(importFilePath)
+                    // return import(importFilePath)
                   },
                 ),
             )
             patches = patches.map( (patch) => {
-                logger.info("loadPatches - Parsing patch", {patch: patch.default})
-                return patch.default;
+                logger.info("loadPatches - Parsing patch", {patch})
+                return patch;
             })
             logger.info("loadPatches - Successfully loaded patches");
             logger.info("loadPatches - patches", {patches})
@@ -209,8 +214,9 @@ class Surfer {
         let _schemaVersion = schemaVersion;
         try {
             const allPatches = await this.loadPatches();
-            // When schemaVersion is undefined uses index 0
-            const startingIndex = schemaVersion ? allPatches.findIndex(patch => patch.version === schemaVersion)
+            // When schemaVersion is undefined uses index 0 (start from first)
+            // or start from the index after the patch at which the system is at 
+            const startingIndex = schemaVersion ? (allPatches.findIndex(patch => patch.version === schemaVersion)+1)
                 : 0;
             logger.info(`applyPatches - Starting to apply patches from index ${startingIndex}`)
             if (startingIndex === -1 || startingIndex === allPatches.length) {
@@ -257,7 +263,7 @@ class Surfer {
             }
         }
         // Update systemDoc
-        await this.db.put(_systemDoc);
+        await this.db.put({..._systemDoc, startupTime: (new Date()).valueOf()});
         logger.info("checkSystem - updated system", {system: _systemDoc})
     }
 

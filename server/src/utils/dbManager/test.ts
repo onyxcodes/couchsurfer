@@ -52,17 +52,17 @@ const testDataModel = async () => {
     UserClass = await testSurfer.getClass("User");
     console.log({"User (from db)": JSON.stringify(UserClass.getModel(), null, 2)})
 
-    try {
-        const encryptedPassword = encryptString("admin");
-        let userDocument = await UserClass.addCard({
-            username: "admin", password: encryptedPassword, 
-            email: "admin@email.com", firstName: "FirstName", lastName: "LastName"
-        });
+    // try {
+    //     const encryptedPassword = encryptString("admin");
+    //     let userDocument = await UserClass.addCard({
+    //         username: "admin", password: encryptedPassword, 
+    //         email: "admin@email.com", firstName: "FirstName", lastName: "LastName"
+    //     });
 
-        console.log("userDocument was created", userDocument)
-    } catch (e) {
-        console.log("Error", e);
-    }
+    //     console.log("userDocument was created", userDocument)
+    // } catch (e) {
+    //     console.log("Error", e);
+    // }
 
     let userDocs = await UserClass.getCards(null, null, 0, undefined);
 
