@@ -2,7 +2,7 @@ import Attribute, { AttributeModel, AttributeType } from '../Attribute'
 import Surfer, { Document } from '../Surfer';
 // import DbManager from '..';
 import getLogger from "../../../utils/logger";
-import ReferenceAttribute from '../Reference';
+// import ReferenceAttribute from '../Reference';
 
 const logger = getLogger().child({module: "Surfer"})
 

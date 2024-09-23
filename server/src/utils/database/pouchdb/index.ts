@@ -5,8 +5,8 @@ import replicateChanges from "../replication/index.js"
 import { docArray, changeLimit, maxChanges } from "../replication/index.js"
 import Find from 'pouchdb-find'
 NodePouchDB.plugin(Find)
-import serverLogger from "../../logger/server-logger.js"
-const logger = serverLogger.child({module: "pouchdb"})
+import getLogger from "../../logger/"
+const logger = getLogger().child({module: "pouchdb"})
 
 const localdb = new NodePouchDB('wordsearch', {
   adapter: "memory"

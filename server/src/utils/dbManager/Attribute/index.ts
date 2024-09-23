@@ -1,5 +1,5 @@
 import Class from "../Class";
-import { AttributeTypeReference } from "../Reference";
+// import { AttributeTypeReference } from "../Reference";
 
 const ATTRIBUTE_TYPES = ["string", "number", "integer", "reference", "boolean"];
 
@@ -37,7 +37,7 @@ export type AttributeTypeForeignKey = {
     config: {} & AttributeTypeConfig
 }
 export type AttributeType = AttributeTypeString | AttributeTypeInteger | 
-    AttributeTypeDecimal | AttributeTypeReference | AttributeTypeBoolean | AttributeTypeForeignKey;
+    AttributeTypeDecimal | AttributeTypeBoolean | AttributeTypeForeignKey;
 export type AttributeModel = {
     name: string,
     config: AttributeType["config"],

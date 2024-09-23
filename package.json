@@ -1,7 +1,7 @@
 {
   "name": "couchsurfer",
   "version": "1.0.0",
-  "main": "index.js",
+  "main": "lib/index.js",
   "repository": "https://github.com/onyxcodes/couchsurfer.git",
   "license": "CC-BY-SA-4.0",
   "author": "Onyx <onyxganda@gmail.com> (https://onxy.ac)",

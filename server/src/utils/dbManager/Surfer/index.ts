@@ -67,6 +67,14 @@ export interface Patch {
     }> | PouchDB.Core.Document<{[key: string]: any}>)[]
 }
 
+export interface SystemDoc {
+    _id: string;
+    appVersion: string;
+    schemaVersion: string;
+    dbInfo: PouchDB.Core.DatabaseInfo;
+    startupTime: number;
+}
+
 type SurferOptions = {
     plugins: PouchDB.Plugin[]
 } & PouchDB.Configuration.DatabaseConfiguration 
@@ -153,7 +161,7 @@ class Surfer {
 
     async getSystem() {
         try {
-            let doc = await this.db.get("~system") as any;
+            let doc = await this.db.get("~system") as SystemDoc;
             return doc;
         } catch (e) {
             if (e.name === 'not_found') {
@@ -198,6 +206,9 @@ class Surfer {
         }
     }
 
+    // TODO: Consider storing applied patches in a Class like "Patch"
+    // this would help keeping track of the application date of patches
+    // and eventually provide a better way to discern which patch to apply or not
     private async applyPatch(patch: Patch): Promise<string> {
         try {
             logger.info("applyPatch - attempting to apply patch", {patch})
@@ -239,7 +250,7 @@ class Surfer {
     // TODO: Test if works corrrectly with multiple patch files
     async checkSystem() {
         let systemDoc = await this.getSystem();
-        let _systemDoc;
+        let _systemDoc: SystemDoc;
         const dbInfo = await this.getDbInfo();
         logger.info("checkSystem - current system doc", {system: systemDoc})
         if (!systemDoc) {
@@ -247,7 +258,8 @@ class Surfer {
                 _id: "~system",
                 appVersion: Surfer.appVersion,
                 dbInfo: dbInfo,
-                schemaVersion: undefined
+                schemaVersion: undefined,
+                startupTime: (new Date()).valueOf()
             }
             // schemaVersion will be added after applying patches
             let schemaVersion = await this.applyPatches(_systemDoc.schemaVersion);
@@ -259,11 +271,12 @@ class Surfer {
             _systemDoc = { ...systemDoc,
                 appVersion: Surfer.appVersion,
                 dbInfo: dbInfo,
-                schemaVersion: schemaVersion
+                schemaVersion: schemaVersion,
+                startupTime: (new Date()).valueOf()
             }
         }
         // Update systemDoc
-        await this.db.put({..._systemDoc, startupTime: (new Date()).valueOf()});
+        await this.db.put(_systemDoc);
         logger.info("checkSystem - updated system", {system: _systemDoc})
     }
 
