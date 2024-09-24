@@ -79,23 +79,19 @@ type SurferOptions = {
     plugins: PouchDB.Plugin[]
 } & PouchDB.Configuration.DatabaseConfiguration 
 
+type CachedClass = Class & {
+    ttl: number
+}
+
 class Surfer {
     private db: PouchDB.Database<{}> = undefined;
     private lastDocId: number;
     private connection: string;
     private options: SurferOptions;
     private static appVersion: string = "0.0.1";
-
-    // constructor(conn: string,  options?: SurferOptions) {
-    //     // load default plugins
-    //     NodePouchDB.plugin(Find)
-    //     if (options.plugins) {
-    //         for (let plugin of options.plugins) {
-    //             NodePouchDB.plugin(plugin)
-    //         }
-    //     }
-    //     this.db = new NodePouchDB(conn)
-    // }
+    private cache: {
+        [className: string]: CachedClass
+    }
 
     private constructor() {
         // Private constructor to prevent direct instantiation
@@ -289,8 +285,16 @@ class Surfer {
         return this;
     }
 
+    // TODO: Make the caching time configurable, and implement regular cleaning of cache
     async getClass(className: string) {
-        let classObj = await Class.fetch(this, className);
+        // Check if class is in cache and not expired
+        if (this.cache[className] && Date.now() < this.cache[className].ttl) {
+            logger.info("getClass -  retrieving class from cache", {ttl: this.cache[className].ttl})
+            return this.cache[className];
+        }
+        const classObj = await Class.fetch(this, className);
+        (classObj as CachedClass).ttl = Date.now() + 60000 // 1 minute expiration
+        this.cache[className]
         return classObj;
     }
 
@@ -348,6 +352,10 @@ class Surfer {
             throw new Error(e);
         }
         return _rev;
+    }
+
+    public async dbChanges( options?: PouchDB.Core.ChangesOptions ) {
+        return this.db.changes(options);
     }
 
     // Expects a selector like { type: { $eq: "class" } }

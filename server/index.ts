@@ -1,6 +1,8 @@
-import couchsurfer from "./src"
+import {CouchSurfer} from "./src"
 
-const app = couchsurfer();
+const couchsurfer = new CouchSurfer()
+
+const app = couchsurfer.getApp();
 
 const port = process.env.SERVER_PORT || 5000;
 

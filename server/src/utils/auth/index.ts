@@ -94,7 +94,7 @@ export const setupAdminUser = async () => {
         throw new Error("Can't configure admin user because of missing password");
     }
 
-    const UserClass = globalThis.UserClass as Class;
+    const UserClass = await (globalThis.surfer as Surfer).getClass("UserClass");
     // check if the admin user already exists
     // we consider as admin user the one that has the same username as in the env configs
     const userAdminCards = await UserClass.getCards({
