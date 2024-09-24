@@ -1,6 +1,7 @@
-const {couchsurfer} = require("../lib/index.js");
+const {CouchSurfer} = require("../lib/index.js");
 
-const app = couchsurfer();
+const couch = new CouchSurfer();
+const app = couch.getApp();
 
 const port = process.env.SERVER_PORT || 5000;
 

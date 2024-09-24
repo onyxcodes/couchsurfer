@@ -1,7 +1,7 @@
-import {couchsurfer, Attribute} from "../lib/index.js";
+import {CouchSurfer, Attribute} from "../lib/index.js";
 
-const app = couchsurfer();
-
+const couch = new CouchSurfer();
+const app = couch.getApp();
 
 const port = process.env.SERVER_PORT || 5000;
 

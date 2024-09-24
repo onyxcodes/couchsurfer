@@ -20,6 +20,13 @@ export interface Patch {
         [key: string]: any;
     }>)[];
 }
+export interface SystemDoc {
+    _id: string;
+    appVersion: string;
+    schemaVersion: string;
+    dbInfo: PouchDB.Core.DatabaseInfo;
+    startupTime: number;
+}
 type SurferOptions = {
     plugins: PouchDB.Plugin[];
 } & PouchDB.Configuration.DatabaseConfiguration;
@@ -29,13 +36,14 @@ declare class Surfer {
     private connection;
     private options;
     private static appVersion;
+    private cache;
     private constructor();
     private initialize;
     getDbInfo(): Promise<PouchDB.Core.DatabaseInfo>;
     getDbName(): string;
     static create(conn: string, options?: SurferOptions): Promise<Surfer>;
     getLastDocId(): Promise<number>;
-    getSystem(): Promise<any>;
+    getSystem(): Promise<SystemDoc>;
     private loadPatches;
     private applyPatch;
     private applyPatches;
@@ -45,6 +53,7 @@ declare class Surfer {
     initIndex(): Promise<void>;
     getDocument(docId: string): Promise<PouchDB.Core.ExistingDocument<{}>>;
     getDocRevision(docId: string): Promise<string>;
+    dbChanges(options?: PouchDB.Core.ChangesOptions): Promise<PouchDB.Core.ChangesResponse<{}>>;
     findDocuments(selector: any, fields?: any, skip?: any, limit?: any): Promise<{
         [key: string]: any;
         docs: (PouchDB.Core.ExistingDocument<{}>)[] | undefined[];
