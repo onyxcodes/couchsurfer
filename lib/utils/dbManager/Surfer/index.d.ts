@@ -39,6 +39,7 @@ declare class Surfer {
     private cache;
     private constructor();
     private initialize;
+    getDb(): PouchDB.Database<{}>;
     getDbInfo(): Promise<PouchDB.Core.DatabaseInfo>;
     getDbName(): string;
     static create(conn: string, options?: SurferOptions): Promise<Surfer>;
@@ -53,7 +54,6 @@ declare class Surfer {
     initIndex(): Promise<void>;
     getDocument(docId: string): Promise<PouchDB.Core.ExistingDocument<{}>>;
     getDocRevision(docId: string): Promise<string>;
-    dbChanges(options?: PouchDB.Core.ChangesOptions): Promise<PouchDB.Core.ChangesResponse<{}>>;
     findDocuments(selector: any, fields?: any, skip?: any, limit?: any): Promise<{
         [key: string]: any;
         docs: (PouchDB.Core.ExistingDocument<{}>)[] | undefined[];
