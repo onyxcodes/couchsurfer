@@ -1,6 +1,8 @@
 import crypto from "crypto"
 import dotenv from 'dotenv';
 import fs from 'fs';
+import { resolve } from 'node:path';
+import process from "node:process"
 
 const envPath = '.env';
 
@@ -47,7 +49,8 @@ const generatePair = () => {
 export const updateEnvFile = (config: {
     [key: string]: string;
 }) => {
-    const envFilePath = envPath;
+    const envFilePath = resolve(process.cwd(), envPath);
+    console.log("updateEnvFile - got path", envFilePath)
     const envConfig = dotenv.parse(fs.readFileSync(envFilePath));
 
     for (const [key, value] of Object.entries(config)) {
