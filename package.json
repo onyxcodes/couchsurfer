@@ -1,20 +1,12 @@
 {
   "name": "couchsurfer",
-  "version": "1.0.0",
+  "version": "0.0.1",
   "main": "lib/index.js",
   "repository": "https://github.com/onyxcodes/couchsurfer.git",
   "license": "CC-BY-SA-4.0",
   "author": "Onyx <onyxganda@gmail.com> (https://onxy.ac)",
   "contributors": [
     "Onyx <onyxganda@gmail.com> (https://onyx.ac)"
-  ],
-  "exports": {
-    "./ui": "./lib/client.js",
-    "./server": "./lib/server.js"
-  },
-  "moduleDirectories": [
-    "./ui/src",
-    "./server/src"
   ],
   "eslintConfig": {
     "extends": [
@@ -40,8 +32,8 @@
     "develop:ui": "webpack serve --node-env=development --progress",
     "develop:server": "ts-node ./server/index.ts",
     "test": "jest --config jest.config.ts",
-    "build:server-types": "npx tsc -p server/tsconfig.json",
-    "build:server": "rollup --config server/rollup.config.js && npm run build:server-types && cp -r server/src/utils/dbManager/datamodel/patch lib/",
+    "build:types": "npx tsc -p server/tsconfig.json",
+    "build:server": "rollup --config server/rollup.config.js && npm run build:types && cp -r server/src/utils/dbManager/datamodel/patch lib/",
     "build:ui": "webpack --node-env=production",
     "build": "npm run build:server && npm run build:ui",
     "build-docs:server": "npx typedoc --options ./server/typedoc.json",

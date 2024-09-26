@@ -122,6 +122,13 @@ class Surfer {
             }
         }
         this.db = new PouchDB(conn);
+        this.cache = {
+            // empty at init
+        }
+    }
+
+    public getDb() {
+        return this.db
     }
 
     public async getDbInfo() {
@@ -272,7 +279,13 @@ class Surfer {
             }
         }
         // Update systemDoc
-        await this.db.put(_systemDoc);
+        try {
+            await this.db.put(_systemDoc);
+
+        } catch(e) {
+            logger.error("checkSystem - There was a problem while updating system", {error: e})
+            throw new Error(e)
+        }
         logger.info("checkSystem - updated system", {system: _systemDoc})
     }
 
@@ -352,10 +365,6 @@ class Surfer {
             throw new Error(e);
         }
         return _rev;
-    }
-
-    public async dbChanges( options?: PouchDB.Core.ChangesOptions ) {
-        return this.db.changes(options);
     }
 
     // Expects a selector like { type: { $eq: "class" } }

@@ -83,6 +83,7 @@ export const login = async (username: string, password: string) => {
 
 // Setups admin user using environment values
 export const setupAdminUser = async () => {
+    console.log("setupAdminUser - setting up admin user")
     const adminUsername = process.env.ADMIN_USERNAME;
     const adminPassword = process.env.ADMIN_PASSWORD;
 
@@ -94,7 +95,7 @@ export const setupAdminUser = async () => {
         throw new Error("Can't configure admin user because of missing password");
     }
 
-    const UserClass = await (globalThis.surfer as Surfer).getClass("UserClass");
+    const UserClass = await (globalThis.surfer as Surfer).getClass("User");
     // check if the admin user already exists
     // we consider as admin user the one that has the same username as in the env configs
     const userAdminCards = await UserClass.getCards({

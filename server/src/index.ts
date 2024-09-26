@@ -14,8 +14,9 @@ import jwt from 'jsonwebtoken';
 import Class from './utils/dbManager/Class';
 import { setPatchCount } from './utils/dbManager/datamodel';
 import Attribute from './utils/dbManager/Attribute';
+import { EventEmitter } from 'node:events';
 
-class CouchSurfer {
+class CouchSurfer extends EventEmitter {
     private app: Express;
     private dbName: string;
     private readyState: boolean; 
@@ -33,8 +34,9 @@ class CouchSurfer {
         });
         this.surfer = surfer;
         globalThis.surfer = this.surfer;
-        await this.setupAdminUser()
+        await setupAdminUser();
         this.readyState = true;
+        this.emit('ready') // TODO: consider wether to provide args
     }
 
     async resetDb() {
@@ -45,6 +47,13 @@ class CouchSurfer {
         }
     }
 
+    public getSurfer() {
+        return this.surfer;
+    }
+
+    public getReadyState() {
+        return this.readyState;
+    }
     async reset() {
         try {
             await this.resetDb();
@@ -54,18 +63,15 @@ class CouchSurfer {
         }
     }
 
-    private async setupAdminUser() {
-        return setupAdminUser.bind(this)
-    }
-
     constructor(config?: {
         dbName: string;
     }) {
+        super();
         this.dbName = (config && config.dbName) ? config.dbName : "couchsurfer";
         const logger = getLogger().child({module: "express"})
         this.app = express();
         this.readyState = false;
-        /** EXPRESS MIDDLEWARES */
+
         this.app.use(logRequest)
         // Enable CORS for all routes
         if (process.env.NODE_ENV === 'development') {
@@ -242,6 +248,7 @@ class CouchSurfer {
         setPatchCount()
         // setTimeout(test, 1000)
         this.initInstance(this.dbName)
+        this.on("ready", () => logger.info("CouchSurfer successfully initialized"))
     }
 
     public getApp() {
