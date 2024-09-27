@@ -3,3 +3,15 @@ ui/
 example/
 jest.config.ts
 webpack.config.js
+
+# Example files
+example/
+
+# PouchDB database and logs
+log/
+db-*/
+combined.log
+errors.log
+
+.env
+example.env

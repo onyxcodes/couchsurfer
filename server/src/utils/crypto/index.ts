@@ -2,7 +2,7 @@ import crypto from "crypto"
 import dotenv from 'dotenv';
 import fs from 'fs';
 
-const envPath = '.env';
+const envPath = process.env.ENVFILE || "./.env";
 
 dotenv.config({ path: envPath }); 
 
