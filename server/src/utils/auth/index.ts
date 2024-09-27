@@ -86,8 +86,7 @@ export const login = async (username: string, password: string) => {
 // Setups admin user using environment values
 export const setupAdminUser = async () => {
     console.log("setupAdminUser - setting up admin user")
-    console.log(dotenv.parse(fs.readFileSync(envPath)))
-    dotenv.config({ path: envPath })
+
     let adminUsername = process.env.ADMIN_USERNAME;
     let adminPassword = process.env.ADMIN_PASSWORD;
 
