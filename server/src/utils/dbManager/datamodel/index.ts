@@ -43,7 +43,6 @@ export const setPatchCount = () => {
     const count = countPatches();
     updateEnvFile({"PATCH_COUNT": `${count}`});
     console.log("PATCH_COUNT environment updated successfully. Reloading .env file...");
-    dotenv.config({ override: true })
 }
 
 export default setPatchCount;

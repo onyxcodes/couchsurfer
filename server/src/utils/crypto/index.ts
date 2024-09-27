@@ -63,6 +63,7 @@ export const updateEnvFile = (config: {
             .join('\n');
 
         fs.writeFileSync(envFilePath, envContent);
+        dotenv.config({ override: true, path: envFilePath})
     } catch (e) {
         const errMsg = `updateEnvFile - Error while updating env file at path ${envFilePath}: ${e}` ;
         console.error(errMsg);
@@ -80,7 +81,6 @@ export const generatePswKeys = () => {
     const { publicKey, privateKey } = generatePair();
     updateEnvFile({"PSW_PUBLIC_KEY": publicKey, "PSW_PRIVATE_KEY": privateKey});
     console.log("Key pair generated successfully. Reloading .env file...");
-    dotenv.config({ override: true })
 }
 export const generateJwtKeys = () => {
     let keys = checkKeyPairPresence(["JWT_PUBLIC_KEY", "JWT_PRIVATE_KEY"]);
@@ -91,7 +91,6 @@ export const generateJwtKeys = () => {
     const { publicKey, privateKey } = generatePair();
     updateEnvFile({"JWT_PUBLIC_KEY": publicKey, "JWT_PRIVATE_KEY": privateKey});
     console.log("JWT key pair generated successfully. Reloading .env file...");
-    dotenv.config({ override: true })
 }
 
 export const encryptString = (stringToEncrypt: string) => {

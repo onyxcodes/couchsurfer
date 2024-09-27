@@ -4,6 +4,7 @@ import jwt from 'jsonwebtoken';
 import dotenv from 'dotenv';
 import { resolve } from "path";
 import getLogger from "../logger";
+import fs from "node:fs"
 
 const logger = getLogger().child({module: "auth"})
 
@@ -85,6 +86,7 @@ export const login = async (username: string, password: string) => {
 // Setups admin user using environment values
 export const setupAdminUser = async () => {
     console.log("setupAdminUser - setting up admin user")
+    console.log(dotenv.parse(fs.readFileSync(envPath)))
     const adminUsername = process.env.ADMIN_USERNAME;
     const adminPassword = process.env.ADMIN_PASSWORD;
 
