@@ -87,15 +87,18 @@ export const login = async (username: string, password: string) => {
 export const setupAdminUser = async () => {
     console.log("setupAdminUser - setting up admin user")
     console.log(dotenv.parse(fs.readFileSync(envPath)))
-    const adminUsername = process.env.ADMIN_USERNAME;
-    const adminPassword = process.env.ADMIN_PASSWORD;
+    dotenv.config({ path: envPath })
+    let adminUsername = process.env.ADMIN_USERNAME;
+    let adminPassword = process.env.ADMIN_PASSWORD;
 
     if (!adminUsername || adminUsername === '') {
-        throw new Error("Can't configure admin user because of missing username");
+        console.warn("Missing admin username configuration. Falling back to default");
+        adminUsername = "admin"
     }
 
     if (!adminPassword || adminPassword === '') {
-        throw new Error("Can't configure admin user because of missing password");
+        console.warn("Missing admin password configuration. Falling back to default");
+        adminPassword = "admin"
     }
 
     const UserClass = await (globalThis.surfer as Surfer).getClass("User");
