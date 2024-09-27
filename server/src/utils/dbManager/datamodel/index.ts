@@ -4,7 +4,11 @@ import fs from 'node:fs';
 import dotenv from 'dotenv';
 import { updateEnvFile } from '../../../utils/crypto';
 import path from 'node:path';
-const envPath = '.env';
+import { resolve } from "path";
+
+let envPath = process.env.ENVFILE || "./.env";
+envPath = resolve(process.cwd(), envPath)
+
 dotenv.config({ path: envPath }); 
 
 // TODO: Consider an alternative for when running in the browser

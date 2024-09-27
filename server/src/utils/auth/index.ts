@@ -2,14 +2,15 @@ import { decryptString, encryptString, hashStringEpoch } from "../crypto";
 import Surfer, {Document} from '../dbManager/Surfer';
 import jwt from 'jsonwebtoken';
 import dotenv from 'dotenv';
-import Class from "../dbManager/Class";
+import { resolve } from "path";
 import getLogger from "../logger";
 
 const logger = getLogger().child({module: "auth"})
 
-const envPath = '.env';
+let envPath = process.env.ENVFILE || "./.env";
+envPath = resolve(process.cwd(), envPath)
 
-dotenv.config({ path: envPath });
+dotenv.config({ path: envPath }); 
 
 export interface JWTAuthPayload {
     username: string;
