@@ -10,8 +10,15 @@ import { AttributeModel, AttributeTypeDecimal,
 // import ReferenceAttribute, { AttributeTypeReference } from "../Reference";
 import { decryptString } from "../../../utils/crypto";
 import { importJsonFile } from "../datamodel";
+import { resolve } from "node:path"
+import * as dotenv from "dotenv";
 
 const logger = getLogger().child({module: "Surfer"})
+
+// TODO: Consider moving elsewhere to address browser compatibility issues
+let envPath = process.env.ENVFILE || "./.env";
+envPath = resolve(process.cwd(), envPath)
+dotenv.config({ path: envPath })
 
 export const BASE_SCHEMA: AttributeModel[] = [
     { name: "_id", type: "string", config: { maxLength: 100 } },
@@ -180,6 +187,8 @@ class Surfer {
     // it get substituted with the correct path for the build configuration
     private async loadPatches(): Promise<Patch[]> {
         let __patchDir = "../datamodel/patch"
+        // This variable is managed at rollup config
+        // otherwise (development) should be undefined
         if (process.env.BUILDING) __patchDir = "patch"
         // [TODO] Load patches from files located in utils/dbManager/patch
         try {
