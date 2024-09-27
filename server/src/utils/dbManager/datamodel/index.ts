@@ -17,7 +17,9 @@ export const countPatches = () => {
     try {
         const folderPath = path.resolve(__dirname, 'patch')
         console.log("countPatches - checking directory", folderPath)
-        return fs.readdirSync(folderPath).length;
+        const count = fs.readdirSync(folderPath).length;
+        console.log(`countPatches - total number of patches: ${count}`)
+        return count;
     } catch(e) {
         console.log("countPatches - problem while reading patch folder", e)
     }

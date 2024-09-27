@@ -50,6 +50,7 @@ export const updateEnvFile = (config: {
     [key: string]: string;
 }) => {
     const envFilePath = envPath;
+    console.log(`updateEnvFile - preparing to update .env file at path: "${envFilePath}"`)
     try {
         const envConfig = dotenv.parse(fs.readFileSync(envFilePath));
 

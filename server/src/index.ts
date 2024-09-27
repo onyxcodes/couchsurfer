@@ -2,7 +2,6 @@ import express, {Express} from 'express'
 import { static as exStatic } from 'express';
 import * as dotenv from "dotenv";
 import cors from "cors";
-dotenv.config({ path: './.env' })
 import getLogger, {logRequest} from "./utils/logger"
 import test from './utils/dbManager/test';
 import { generateJwtKeys, generatePswKeys } from './utils/crypto';
@@ -15,6 +14,11 @@ import Class from './utils/dbManager/Class';
 import { setPatchCount } from './utils/dbManager/datamodel';
 import Attribute from './utils/dbManager/Attribute';
 import { EventEmitter } from 'node:events';
+import { resolve } from 'node:path';
+
+let envPath = process.env.ENVFILE || "./.env";
+envPath = resolve(process.cwd(), envPath)
+dotenv.config({ path: envPath })
 
 class CouchSurfer extends EventEmitter {
     private app: Express;
