@@ -1,8 +1,10 @@
 import crypto from "crypto"
 import dotenv from 'dotenv';
 import fs from 'fs';
+import { resolve } from "path";
 
-const envPath = process.env.ENVFILE || "./.env";
+let envPath = process.env.ENVFILE || "./.env";
+envPath = resolve(process.cwd(), envPath)
 
 dotenv.config({ path: envPath }); 
 
@@ -48,17 +50,24 @@ export const updateEnvFile = (config: {
     [key: string]: string;
 }) => {
     const envFilePath = envPath;
-    const envConfig = dotenv.parse(fs.readFileSync(envFilePath));
+    try {
+        const envConfig = dotenv.parse(fs.readFileSync(envFilePath));
 
-    for (const [key, value] of Object.entries(config)) {
-        envConfig[key] = value;
+        for (const [key, value] of Object.entries(config)) {
+            envConfig[key] = value;
+        }
+
+        const envContent = Object.entries(envConfig)
+            .map(([key, value]) => `${key}="${value}"`)
+            .join('\n');
+
+        fs.writeFileSync(envFilePath, envContent);
+    } catch (e) {
+        const errMsg = `updateEnvFile - Error while updating env file at path ${envFilePath}: ${e}` ;
+        console.error(errMsg);
+        throw new Error(errMsg)
     }
-
-    const envContent = Object.entries(envConfig)
-        .map(([key, value]) => `${key}="${value}"`)
-        .join('\n');
-
-    fs.writeFileSync(envFilePath, envContent);
+    
 };
 
 export const generatePswKeys = () => {
