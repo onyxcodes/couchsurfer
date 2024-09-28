@@ -54,7 +54,7 @@ declare class Surfer {
     initIndex(): Promise<void>;
     getDocument(docId: string): Promise<PouchDB.Core.ExistingDocument<{}>>;
     getDocRevision(docId: string): Promise<string>;
-    findDocuments(selector: any, fields?: any, skip?: any, limit?: any): Promise<{
+    findDocuments(selector: any, fields?: any, skip?: number, limit?: number): Promise<{
         [key: string]: any;
         docs: (PouchDB.Core.ExistingDocument<{}>)[] | undefined[];
     }>;

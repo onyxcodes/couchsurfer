@@ -377,7 +377,7 @@ class Surfer {
     }
 
     // Expects a selector like { type: { $eq: "class" } }
-    async findDocuments( selector: any, fields = undefined, skip = undefined, limit = undefined ) {
+    async findDocuments( selector: any, fields = undefined, skip: number = undefined, limit: number = undefined ) {
         let indexFields = Object.keys(selector);
         let result: {
             docs: (PouchDB.Core.ExistingDocument<{}>)[] | undefined[],
@@ -389,7 +389,7 @@ class Surfer {
             let indexResult = await this.db.createIndex({
                 index: { fields: indexFields }
             });
-    
+
             let foundResult = await this.db.find({
                 selector: selector,
                 fields: fields,

@@ -40,7 +40,7 @@ class CouchSurfer extends EventEmitter {
         globalThis.surfer = this.surfer;
         await setupAdminUser();
         this.readyState = true;
-        this.emit('ready') // TODO: consider wether to provide args
+        this.emit('ready') // TODO: consider whether to provide args
     }
 
     async resetDb() {
@@ -164,8 +164,8 @@ class CouchSurfer extends EventEmitter {
 
                 res.cookie('jwtToken', token, cookieOptions);
                 return res.status(responseCode).json(body);
-            } catch (error) {
-                console.error("Error during login", error);
+            } catch (e) {
+                logger.error("Error during login", {error: e});
                 return res.status(500).json({ success: false, error: 'An error occurred' });
             }
         });
@@ -188,7 +188,7 @@ class CouchSurfer extends EventEmitter {
                 await Surfer.clear(conn);
                 return res.status(200).json({ success: true, message: 'Internal database cleared' });
             } catch (e) {
-                logger.error("Error during database clear", e);
+                logger.error("Error during database clear", {error: e});
                 return res.status(500).json({ success: false, error: 'An error occurred' });
             }
         });
@@ -213,7 +213,7 @@ class CouchSurfer extends EventEmitter {
                     {classModel: newClass.getModel()}
                 )
             } catch (e) {
-                logger.error(`Error during class '${name} creation`, e);
+                logger.error(`Error during class '${name} creation`, {error: e});
                 return res.status(500).json({ success: false, error: 'An error occurred' });
             }
             
@@ -235,13 +235,67 @@ class CouchSurfer extends EventEmitter {
                     {attributeModel: newAttribute.getModel()}
                 );
             } catch (e) {
-                logger.error(`Error during attribute '${name}' creation`, e)
+                logger.error(`Error during attribute '${name}' creation`, {error: e})
+                return res.status(500).json({ success: false, error: 'An error occurred' });
+            }
+            return res.status(200).json({ success: true, message: 'Attribute added successfully' });
+        })
+
+        // this.app.get('*/:class/:id', async (req, res) => { /** TODO */})
+
+        this.app.post('/api/*/:className/get-cards', async (req, res) => {
+            const { className } = req.params;
+            const { selector, fields, skip, limit } = req.body;
+
+            // fetch class
+            try {
+                const _class = await this.getSurfer().getClass(className);
+                const result = await _class.getCards(selector, fields, skip, limit)
+                return res.status(200).json({ success: true, result });
+            }  catch (e) {
+                logger.error("Error while fetching cards", {error: e})
+                return res.status(500).json({ success: false, error: 'An error occurred' });
             }
         })
 
-        // const port = process.env.SERVER_PORT || 5000;
+        this.app.put('/api/*/:className/put-card', async (req, res) => {
+            const { className } = req.params;
+            const { card } = req.body
+            // fetch class
+            try {
+                const _class = await this.getSurfer().getClass(className);
+                const response = await _class.addOrUpdateCard(card);
+                return res.status(200).json({ success: true, response });
+            } catch (e) {
+                logger.error("Error while adding card", {error: e})
+                return res.status(500).json({ success: false, error: 'An error occurred' });
+            }
+        })
 
-        // const server = this.app.listen(port, () => logger.info(`Listening on port ${port}`));
+        this.app.put('/api/*/:className/put-cards', async (req, res) => {
+            const { className } = req.params;
+            const { cards } = req.body;
+
+            try {
+                // fetch class
+                const _class = await this.getSurfer().getClass(className);
+                const completed = [],
+                    failed = [];
+
+                for (const card of cards) {
+                    try {
+                        let cardRes = await _class.addOrUpdateCard(card);
+                        completed.push(cardRes)
+                    } catch (cardErr) {
+                        logger.error("Error while adding card", {error: cardErr})
+                        failed.push({card, error: cardErr})
+                    }
+                }
+                return res.status(200).json({ success: true, completed, failed });
+            } catch(e) {
+                return res.status(500).json({ success: false, error: 'An error occurred' });
+            }
+        })
 
         // Procedure that should run once only
         // can be considered "setup procedures"

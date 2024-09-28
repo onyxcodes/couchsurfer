@@ -46,6 +46,6 @@ declare class Class {
     updateCard(cardId: string, params: {
         [key: string]: any;
     }): Promise<Document>;
-    getCards(selector: any, fields: any, skip: any, limit: any): Promise<PouchDB.Core.ExistingDocument<{}>[] | undefined[]>;
+    getCards(selector?: any, fields?: any, skip?: number, limit?: number): Promise<PouchDB.Core.ExistingDocument<{}>[] | undefined[]>;
 }
 export default Class;

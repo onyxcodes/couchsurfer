@@ -8,7 +8,7 @@ export const logRequest = expressWinston.logger({
   transports: [
     new winston.transports.Console()
   ],
-    level: "info",
+  level: "info",
 });
 
 export const serverLogger = createLogger({

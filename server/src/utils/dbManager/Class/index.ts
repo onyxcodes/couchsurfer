@@ -329,13 +329,17 @@ class Class {
         if (cardId) return this.updateCard(cardId, params);
 
         // attempt to retrieve card by primary key
-        let filter = {}
+        let selector = {}
         this.getPrimaryKeys().reduce(
             (accumulator, currentValue) => accumulator[currentValue] = params[currentValue],
-            filter,
+            selector,
         );
-        let cards = await this.getCards(filter, null, 0, 1);
-        if (cards.length > 0) { 
+        let cards = await this.getCards(selector);
+        if (cards.length > 1) {
+            let message = "addOrUpdateCard - Found more than one";
+            logger.error(message, {cards})
+            throw new Error(message)
+        } else if ( cards.length > 0 ) {
             return this.updateCard(cards[0]._id, params);
         } else {
             return this.addCard(params);
@@ -346,7 +350,7 @@ class Class {
         return await this.space.createDoc(cardId, this.getName(), this, params);
     }
 
-    async getCards(selector, fields, skip, limit) {
+    async getCards(selector = undefined, fields = undefined, skip: number = undefined, limit: number = undefined) {
         let _selector = { ...selector, type: this.name };
         logger.info("getCards - selector", {selector: _selector, fields, skip, limit})
         let docs = (await this.space.findDocuments(_selector, fields, skip, limit)).docs
